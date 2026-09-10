@@ -1297,6 +1297,16 @@ git commit -m "feat: render procedural wood-grain board background"
 
 ## Task 8: Vehicles, drag-to-slide, snap animation, blocked feedback
 
+> **Follow-up from Task 6's code review:** `GameViewModel.attemptMove` delegates id
+> lookup to `Board.vehicle(id)`, which throws `NoSuchElementException` for an unknown
+> vehicle id rather than silently no-op'ing (unlike the illegal-delta branch, which is a
+> silent no-op). `vehicleAt(board, offset, cellPx)` below always derives the id from a
+> real hit-test against the current board's vehicles, so in the normal case this can't
+> happen — but consider whether a drag that starts, then a `restart()`/level change
+> happens mid-drag (unlikely in this single-level slice, but worth a thought), could hand
+> `onMove` a stale id. If it's a real path, either guard it here or add the no-op guard
+> to `GameViewModel` instead.
+
 No unit tests — gesture/animation code, verified by playing it on the emulator.
 
 **Files:**
