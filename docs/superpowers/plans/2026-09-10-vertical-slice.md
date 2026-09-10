@@ -12,6 +12,18 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-10-vertical-slice-design.md`
 
+> **Known environment issue — read before running any `.\gradlew.bat` command in this
+> session's sandbox:** if a Gradle invocation fails with
+> `java.io.IOException: Unable to establish loopback connection`, this is **not** a
+> Gradle/JDK/AGP version problem — it's already been root-caused (during Task 1) to the
+> sandboxed shell's default `%TEMP%` directory blocking the loopback socket the Gradle
+> wrapper's client JVM uses to talk to its daemon. **Do not re-diagnose this as a
+> version mismatch.** Fix: before running `gradlew`, set
+> `$env:TEMP='C:\jtmp'; $env:TMP='C:\jtmp'` (creating the directory first if needed:
+> `New-Item -ItemType Directory -Force C:\jtmp`). This is a per-invocation/per-session
+> workaround, not something baked into the repo, since it's specific to this sandboxed
+> environment and would be wrong on an unaffected machine.
+
 ---
 
 ## Task 1: Toolchain — JDK, Android SDK, Gradle wrapper
