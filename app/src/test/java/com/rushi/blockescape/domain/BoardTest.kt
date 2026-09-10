@@ -1,4 +1,4 @@
-package com.rushi.unblock.domain
+package com.rushi.blockescape.domain
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

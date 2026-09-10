@@ -1,8 +1,8 @@
-package com.rushi.unblock.solver
+package com.rushi.blockescape.solver
 
-import com.rushi.unblock.domain.Board
-import com.rushi.unblock.domain.Orientation
-import com.rushi.unblock.domain.Vehicle
+import com.rushi.blockescape.domain.Board
+import com.rushi.blockescape.domain.Orientation
+import com.rushi.blockescape.domain.Vehicle
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test

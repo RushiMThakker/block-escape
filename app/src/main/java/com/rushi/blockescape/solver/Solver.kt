@@ -1,6 +1,6 @@
-package com.rushi.unblock.solver
+package com.rushi.blockescape.solver
 
-import com.rushi.unblock.domain.Board
+import com.rushi.blockescape.domain.Board
 
 object Solver {
 

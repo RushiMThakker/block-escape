@@ -1,8 +1,8 @@
-package com.rushi.unblock.level
+package com.rushi.blockescape.level
 
-import com.rushi.unblock.domain.Board
-import com.rushi.unblock.domain.Orientation
-import com.rushi.unblock.domain.Vehicle
+import com.rushi.blockescape.domain.Board
+import com.rushi.blockescape.domain.Orientation
+import com.rushi.blockescape.domain.Vehicle
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json

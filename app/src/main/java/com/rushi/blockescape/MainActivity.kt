@@ -1,15 +1,15 @@
-package com.rushi.unblock
+package com.rushi.blockescape
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
-import com.rushi.unblock.domain.Board
-import com.rushi.unblock.domain.Orientation
-import com.rushi.unblock.domain.Vehicle
-import com.rushi.unblock.ui.GameBoardScreen
-import com.rushi.unblock.ui.theme.UnblockTheme
+import com.rushi.blockescape.domain.Board
+import com.rushi.blockescape.domain.Orientation
+import com.rushi.blockescape.domain.Vehicle
+import com.rushi.blockescape.ui.GameBoardScreen
+import com.rushi.blockescape.ui.theme.BlockEscapeTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -21,7 +21,7 @@ class MainActivity : ComponentActivity() {
             )
         )
         setContent {
-            UnblockTheme {
+            BlockEscapeTheme {
                 Surface(modifier = Modifier) {
                     GameBoardScreen(board = previewBoard)
                 }

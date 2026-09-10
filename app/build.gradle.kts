@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.rushi.unblock"
+    namespace = "com.rushi.blockescape"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.rushi.unblock"
+        applicationId = "com.rushi.blockescape"
         minSdk = 24
         targetSdk = 35
         versionCode = 1

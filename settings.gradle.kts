@@ -13,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Unblock"
+rootProject.name = "BlockEscape"
 include(":app")

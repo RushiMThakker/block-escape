@@ -1,4 +1,4 @@
-package com.rushi.unblock.domain
+package com.rushi.blockescape.domain
 
 data class Vehicle(
     val id: String,

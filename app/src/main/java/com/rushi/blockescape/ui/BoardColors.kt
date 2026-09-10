@@ -1,4 +1,4 @@
-package com.rushi.unblock.ui
+package com.rushi.blockescape.ui
 
 import androidx.compose.ui.graphics.Color
 

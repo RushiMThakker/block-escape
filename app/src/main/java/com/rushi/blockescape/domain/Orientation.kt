@@ -1,3 +1,3 @@
-package com.rushi.unblock.domain
+package com.rushi.blockescape.domain
 
 enum class Orientation { HORIZONTAL, VERTICAL }

@@ -1,7 +1,7 @@
-package com.rushi.unblock.level
+package com.rushi.blockescape.level
 
-import com.rushi.unblock.domain.Orientation
-import com.rushi.unblock.solver.Solver
+import com.rushi.blockescape.domain.Orientation
+import com.rushi.blockescape.solver.Solver
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test

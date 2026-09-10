@@ -1,7 +1,7 @@
-package com.rushi.unblock.level
+package com.rushi.blockescape.level
 
 import android.content.Context
-import com.rushi.unblock.domain.Board
+import com.rushi.blockescape.domain.Board
 
 class LevelRepository(private val context: Context) {
     fun loadLevel(fileName: String): Board {

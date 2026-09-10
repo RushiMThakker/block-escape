@@ -1,4 +1,4 @@
-package com.rushi.unblock.ui.theme
+package com.rushi.blockescape.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
@@ -10,7 +10,7 @@ private val LightColors = lightColorScheme()
 private val DarkColors = darkColorScheme()
 
 @Composable
-fun UnblockTheme(content: @Composable () -> Unit) {
+fun BlockEscapeTheme(content: @Composable () -> Unit) {
     val colors = if (isSystemInDarkTheme()) DarkColors else LightColors
     MaterialTheme(colorScheme = colors, content = content)
 }

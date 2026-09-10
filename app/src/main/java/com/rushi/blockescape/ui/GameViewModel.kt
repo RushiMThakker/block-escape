@@ -1,9 +1,9 @@
-package com.rushi.unblock.ui
+package com.rushi.blockescape.ui
 
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
-import com.rushi.unblock.domain.Board
+import com.rushi.blockescape.domain.Board
 
 class GameViewModel(private val initialBoard: Board) : ViewModel() {
 
