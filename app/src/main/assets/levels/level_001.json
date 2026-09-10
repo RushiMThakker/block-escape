@@ -1,0 +1,9 @@
+{
+  "id": "level_001",
+  "gridSize": 6,
+  "exitRow": 2,
+  "vehicles": [
+    {"id": "primary", "orientation": "horizontal", "length": 2, "row": 2, "col": 0, "isPrimary": true},
+    {"id": "blocker", "orientation": "vertical", "length": 3, "row": 1, "col": 4, "isPrimary": false}
+  ]
+}
