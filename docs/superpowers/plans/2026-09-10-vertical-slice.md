@@ -1089,6 +1089,15 @@ git commit -m "feat: add GameViewModel with undo, move count, and win state"
 
 ---
 
+> **Follow-up from Task 2's code review:** `composeBom` in `gradle/libs.versions.toml` is
+> still the plan's original draft value (`2024.12.01`), unchanged despite Task 2 bumping
+> AGP to 9.4.0 and Kotlin to 2.2.10 for Gradle 9.7.1 compatibility. That pairing didn't
+> break Task 2's placeholder screen, but this task and Task 8 lean on
+> `compose-foundation` gesture/animation APIs (`detectDragGestures`, `Animatable`,
+> `spring`) that may need a newer BOM. Check for a current `composeBom` version
+> compatible with Kotlin 2.2.10 and bump it before starting this task if the APIs below
+> don't resolve.
+
 ## Task 7: Compose board rendering — procedural wood-grain board, no interaction yet
 
 No unit tests this task — pure visual rendering, verified by building and eyeballing on
