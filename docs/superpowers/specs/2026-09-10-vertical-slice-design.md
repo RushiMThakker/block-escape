@@ -120,3 +120,17 @@ A handful of hand-authored levels ship this session, solvable and validated by h
   being opened.
 - C: drive had only ~20GB free; D: had ~258GB free. All SDK/AVD/emulator data is
   redirected to D: for this reason.
+
+## Known follow-up for the next session
+
+- **`GameBoardScreen.kt`/`BoardBackground.kt` hardcode `GRID_SIZE = 6`** instead of
+  reading `board.width`/`board.height`. The domain model and JSON level format both
+  already support variable grid sizes (`Board(width, height, ...)`, `LevelDto.gridSize`),
+  and this is harmless today only because the one shipped level (`level_001.json`) is
+  6x6. The moment a level with a different `gridSize` is added, the render layer will
+  silently misrender against the wrong grid while domain logic (moves, win condition)
+  keeps working correctly — a cosmetic but confusing bug. Fix by deriving grid dimensions
+  from the loaded `Board` before adding a second level with a non-6x6 size. Found by a
+  whole-project review after the vertical slice was otherwise complete — no single task's
+  review could see it in isolation, since it was correct for the only level that existed
+  at the time.
