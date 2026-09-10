@@ -5,10 +5,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -25,7 +26,7 @@ fun GameScreen(viewModel: GameViewModel) {
     val isWon = viewModel.isWon.value
 
     Box(modifier = Modifier.fillMaxSize()) {
-        Column(modifier = Modifier.fillMaxSize().statusBarsPadding().padding(16.dp)) {
+        Column(modifier = Modifier.fillMaxSize().systemBarsPadding().padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -33,7 +34,7 @@ fun GameScreen(viewModel: GameViewModel) {
                 Text("Moves: $moveCount", style = MaterialTheme.typography.titleMedium)
                 Row {
                     Button(onClick = { viewModel.undo() }) { Text("Undo") }
-                    androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(4.dp))
+                    Spacer(modifier = Modifier.padding(4.dp))
                     Button(onClick = { viewModel.restart() }) { Text("Restart") }
                 }
             }
@@ -49,7 +50,7 @@ fun GameScreen(viewModel: GameViewModel) {
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("Solved in $moveCount moves!", style = MaterialTheme.typography.headlineMedium, color = Color.White)
-                    androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(8.dp))
+                    Spacer(modifier = Modifier.padding(8.dp))
                     Button(onClick = { viewModel.restart() }) { Text("Play Again") }
                 }
             }
