@@ -29,7 +29,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun GameScreen(viewModel: GameViewModel) {
+fun GameScreen(
+    viewModel: GameViewModel,
+    levelNumber: Int = 1,
+    totalLevels: Int = 1,
+    hasNextLevel: Boolean = false,
+    onNextLevel: () -> Unit = {}
+) {
     val board = viewModel.board.value
     val moveCount = viewModel.moveCount.value
     val isWon = viewModel.isWon.value
@@ -63,6 +69,16 @@ fun GameScreen(viewModel: GameViewModel) {
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
             )
+
+            if (totalLevels > 1) {
+                Text(
+                    text = "Level $levelNumber of $totalLevels",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
 
             Spacer(modifier = Modifier.height(20.dp))
 
@@ -133,7 +149,13 @@ fun GameScreen(viewModel: GameViewModel) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("Solved in $moveCount moves!", style = MaterialTheme.typography.headlineMedium, color = Color.White)
                     Spacer(modifier = Modifier.padding(8.dp))
-                    Button(onClick = { viewModel.restart() }) { Text("Play Again") }
+                    if (hasNextLevel) {
+                        Button(onClick = onNextLevel) { Text("Next Level") }
+                        Spacer(modifier = Modifier.padding(4.dp))
+                        Button(onClick = { viewModel.restart() }) { Text("Play Again") }
+                    } else {
+                        Button(onClick = { viewModel.restart() }) { Text("Play Again") }
+                    }
                 }
             }
         }
