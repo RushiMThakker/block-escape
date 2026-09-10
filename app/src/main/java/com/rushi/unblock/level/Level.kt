@@ -3,6 +3,7 @@ package com.rushi.unblock.level
 import com.rushi.unblock.domain.Board
 import com.rushi.unblock.domain.Orientation
 import com.rushi.unblock.domain.Vehicle
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
@@ -12,7 +13,8 @@ enum class OrientationDto { horizontal, vertical }
 @Serializable
 data class VehicleDto(
     val id: String,
-    @kotlinx.serialization.SerialName("orientation")
+    // Raw JSON value (key "orientation"); see `orientation` below for the domain-typed equivalent.
+    @SerialName("orientation")
     val orientationDto: OrientationDto,
     val length: Int,
     val row: Int,
