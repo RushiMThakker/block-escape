@@ -102,8 +102,9 @@ class LevelPackTest {
     fun `difficulty progresses across the level pack`() {
         val minMoves = pack.map { Solver.solve(LevelParser.parse(it).toBoard()).minMoves }
 
-        // level_001 is the known 2-move starter puzzle.
-        assertEquals(2, minMoves[0])
+        // Locks in the actual solver-verified curve, not just "increasing" — catches a
+        // level edit that silently reshapes the difficulty curve without anyone noticing.
+        assertEquals(listOf(2, 3, 5, 7), minMoves)
 
         // Each subsequent level should require strictly more moves than the previous one —
         // a real (solver-verified) difficulty curve, not a guessed one.
