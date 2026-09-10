@@ -5,25 +5,20 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
-import com.rushi.blockescape.domain.Board
-import com.rushi.blockescape.domain.Orientation
-import com.rushi.blockescape.domain.Vehicle
-import com.rushi.blockescape.ui.GameBoardScreen
+import com.rushi.blockescape.level.LevelRepository
+import com.rushi.blockescape.ui.GameScreen
+import com.rushi.blockescape.ui.GameViewModel
 import com.rushi.blockescape.ui.theme.BlockEscapeTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val previewBoard = Board(
-            vehicles = listOf(
-                Vehicle("primary", Orientation.HORIZONTAL, length = 2, row = 2, col = 0, isPrimary = true),
-                Vehicle("blocker", Orientation.VERTICAL, length = 3, row = 1, col = 4)
-            )
-        )
+        val board = LevelRepository(applicationContext).loadLevel("level_001.json")
+        val viewModel = GameViewModel(board)
         setContent {
             BlockEscapeTheme {
                 Surface(modifier = Modifier) {
-                    GameBoardScreen(board = previewBoard)
+                    GameScreen(viewModel = viewModel)
                 }
             }
         }
