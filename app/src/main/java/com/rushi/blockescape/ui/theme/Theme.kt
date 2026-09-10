@@ -6,6 +6,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import com.rushi.blockescape.ui.BoardColors
 
 // The app's overall chrome (everything outside the wood-grain board) is tuned to sit in
 // the same warm/neutral visual family as BoardColors' wood palette, without literally
@@ -13,9 +14,9 @@ import androidx.compose.ui.graphics.Color
 // object (like a game board on a table), so the surrounding tones are desaturated,
 // warm-neutral "tabletop" colors rather than more wood.
 private val LightColors = lightColorScheme(
-    primary = Color(0xFF8B5A2B), // matches BoardColors.woodBase — ties buttons/accents to the board
+    primary = BoardColors.woodBase, // ties buttons/accents to the board
     onPrimary = Color(0xFFFFF8EF),
-    secondary = Color(0xFFA6714A), // BoardColors.woodLight
+    secondary = BoardColors.woodLight,
     onSecondary = Color(0xFF3B2A1B),
     background = Color(0xFFE2D4BC), // warm linen "tabletop" surrounding the board
     onBackground = Color(0xFF3B2A1B),
