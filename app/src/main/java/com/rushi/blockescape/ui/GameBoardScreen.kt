@@ -33,10 +33,6 @@ import com.rushi.blockescape.domain.Vehicle
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-// Shared with BoardBackground.kt's grid-line/cell-size math (internal, not private —
-// Kotlin's top-level `private` is file-scoped and wouldn't be visible there).
-internal const val GRID_SIZE = 6
-
 @Composable
 fun GameBoardScreen(board: Board, onMove: (String, Int) -> Unit = { _, _ -> }) {
     var cellPx by remember { mutableFloatStateOf(0f) }
@@ -88,7 +84,7 @@ fun GameBoardScreen(board: Board, onMove: (String, Int) -> Unit = { _, _ -> }) {
             .padding(16.dp)
             .aspectRatio(1f)
             .pointerInput(board) {
-                cellPx = size.width / GRID_SIZE.toFloat()
+                cellPx = size.width / board.width.toFloat()
                 detectDragGestures(
                     onDragStart = { offset ->
                         draggingId = vehicleAt(board, offset, cellPx)
@@ -199,7 +195,7 @@ fun GameBoardScreen(board: Board, onMove: (String, Int) -> Unit = { _, _ -> }) {
         // on that first frame would size every vehicle to zero and crash the radial
         // highlight gradient (`ending radius must be > 0`). This is a cheap assignment,
         // safe to repeat every frame.
-        cellPx = size.width / GRID_SIZE.toFloat()
+        cellPx = size.width / board.width.toFloat()
 
         // This part is NOT cached — it's cheap (one rounded rect + one gradient overlay
         // per vehicle) and needs to redraw every frame during a drag to track the finger.

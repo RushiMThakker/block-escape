@@ -54,13 +54,16 @@ internal data class BoardBackground(
 )
 
 internal fun buildBoardBackground(board: Board, size: Size): BoardBackground {
-    val cell = size.width / GRID_SIZE
+    // board.width is used for both axes: the JSON level format (LevelDto.gridSize) only
+    // ever produces square boards (width == height), and the Canvas is always rendered at
+    // aspectRatio(1f), so there is no separate "height in cells" to derive here.
+    val cell = size.width / board.width
 
     val (baseGradientBrush, sheenBrush) = buildBaseGradient(size)
     val (grainStrokes, poreDashes) = buildWoodGrain(size)
     val knots = buildKnots(size)
     val vignetteBrush = buildVignette(size)
-    val gridLines = buildGridLines(size, cell)
+    val gridLines = buildGridLines(size, cell, board.width)
     val (frameSegments, frameHighlights) = buildFrame(board, size, cell)
     val exitGlow = buildExitGlow(board, size, cell)
 
@@ -182,9 +185,9 @@ private fun buildVignette(size: Size): Brush =
         radius = size.width * 0.78f
     )
 
-private fun buildGridLines(size: Size, cell: Float): List<Pair<Offset, Offset>> {
-    val lines = ArrayList<Pair<Offset, Offset>>((GRID_SIZE + 1) * 2)
-    for (i in 0..GRID_SIZE) {
+private fun buildGridLines(size: Size, cell: Float, gridSize: Int): List<Pair<Offset, Offset>> {
+    val lines = ArrayList<Pair<Offset, Offset>>((gridSize + 1) * 2)
+    for (i in 0..gridSize) {
         lines.add(Offset(i * cell, 0f) to Offset(i * cell, size.height))
         lines.add(Offset(0f, i * cell) to Offset(size.width, i * cell))
     }
