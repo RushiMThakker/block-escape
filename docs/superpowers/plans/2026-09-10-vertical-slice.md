@@ -1297,6 +1297,19 @@ git commit -m "feat: render procedural wood-grain board background"
 
 ## Task 8: Vehicles, drag-to-slide, snap animation, blocked feedback
 
+> **Follow-up from Task 7's code review — do this FIRST, before adding vehicles/gestures:**
+> `GameBoardScreen.kt`'s static wood-grain background (`drawBaseGradient`, `drawWoodGrain`,
+> `drawKnots`, `drawVignette`, `drawGridLines`, `drawFrameWithExitGap`) does ~330 draw
+> calls (70 `Path` builds with `sin()` evaluation + 260 line segments) every time the
+> `Canvas` draw lambda runs, with no caching. That's fine for a static screen, but this
+> task adds drag-gesture state that will cause the same `Canvas` to recompose on every
+> drag frame — redoing all 330 static draw calls every frame alongside the actual
+> per-frame vehicle draws, which risks real jank during dragging (the thing this task
+> most needs to feel good). Before wiring up `detectDragGestures`, cache the static
+> background layer — e.g. `Modifier.drawWithCache { ... }` producing a cached draw
+> command, or render it once to an `ImageBitmap` and blit it each frame — so drag frames
+> only redo the cheap vehicle-position draws, not the wood-grain background.
+
 > **Follow-up from Task 6's code review:** `GameViewModel.attemptMove` delegates id
 > lookup to `Board.vehicle(id)`, which throws `NoSuchElementException` for an unknown
 > vehicle id rather than silently no-op'ing (unlike the illegal-delta branch, which is a
