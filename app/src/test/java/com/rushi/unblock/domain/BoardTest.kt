@@ -66,4 +66,19 @@ class BoardTest {
             .move("primary", 4)
         assertTrue(solved.isSolved)
     }
+
+    @Test
+    fun `vehicle boxed in on both sides has no legal moves`() {
+        val board = Board(
+            width = 6,
+            height = 6,
+            exitRow = 2,
+            vehicles = listOf(
+                Vehicle(id = "boxed", orientation = Orientation.HORIZONTAL, length = 2, row = 2, col = 2, isPrimary = true),
+                Vehicle(id = "left", orientation = Orientation.VERTICAL, length = 3, row = 1, col = 1),
+                Vehicle(id = "right", orientation = Orientation.VERTICAL, length = 3, row = 1, col = 4)
+            )
+        )
+        assertEquals(0..0, board.legalMoves("boxed"))
+    }
 }
