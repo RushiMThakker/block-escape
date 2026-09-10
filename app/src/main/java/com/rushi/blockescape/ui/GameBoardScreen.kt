@@ -46,14 +46,40 @@ fun GameBoardScreen(board: Board, onMove: (String, Int) -> Unit = { _, _ -> }) {
     val shake = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
 
-    // Defensive reset: if `board` is swapped out for a new instance while idle (e.g. a
-    // future restart()/undo() from Task 9's real GameViewModel), clear any leftover drag
-    // state. pointerInput(board) re-keying only affects the gesture-detection coroutine,
-    // not these separately-remember'ed values, so without this a stale draggingId/
-    // dragOffsetCells could survive a board swap.
+    // Distinguishes a SELF-caused board change (the direct result of this composable's
+    // own onMove(id, finalDelta) call in onDragEnd below) from a genuinely EXTERNAL one
+    // (a future restart()/undo()/level-change triggered from outside, e.g. a HUD button).
+    // Armed immediately before the onMove call and consumed (cleared) the first time
+    // LaunchedEffect(board) below observes it, so it can only ever affect the very next
+    // board-change firing.
+    //
+    // It is deliberately only armed when finalDelta != 0: GameViewModel.attemptMove
+    // returns immediately without touching board state when delta == 0 (see
+    // GameViewModel.kt), which happens whenever the user drags less than half a cell and
+    // releases. If we armed the flag unconditionally, that case would leave it stuck
+    // `true` with no board-change ever arriving to consume it - and it would then
+    // incorrectly suppress the reset for some later, unrelated EXTERNAL board change
+    // (e.g. the user immediately hitting "restart" after a tiny no-op drag). Gating on
+    // finalDelta != 0 is sound here because finalDelta is already clamped to
+    // board.legalMoves(id) computed from this same board (see onDrag below), so a
+    // nonzero finalDelta is guaranteed to be accepted by attemptMove's own re-check of
+    // legalMoves against the current board.
+    var selfTriggeredMove by remember { mutableStateOf(false) }
+
+    // Defensive reset: if `board` is swapped out for a new instance (e.g. a future
+    // restart()/undo() from Task 9's real GameViewModel) while drag state is lingering,
+    // clear it - unless this composable's own onMove call is what caused the change, in
+    // which case the settle animation (guarded separately via `draggingId == id` checks)
+    // should be left to play out uninterrupted. pointerInput(board) re-keying only
+    // affects the gesture-detection coroutine, not these separately-remember'ed values,
+    // so without this a stale draggingId/dragOffsetCells could survive a board swap.
     LaunchedEffect(board) {
-        draggingId = null
-        dragOffsetCells = 0f
+        if (selfTriggeredMove) {
+            selfTriggeredMove = false
+        } else {
+            draggingId = null
+            dragOffsetCells = 0f
+        }
     }
 
     Canvas(
@@ -107,6 +133,14 @@ fun GameBoardScreen(board: Board, onMove: (String, Int) -> Unit = { _, _ -> }) {
                             // reads dragOffsetCells' current value now, not whatever it
                             // will be whenever the launched coroutine happens to run.
                             val settleFrom = dragOffsetCells - finalDelta
+                            // Arm the self-triggered flag only when we're actually
+                            // requesting a move (see the declaration above for why
+                            // finalDelta == 0 must NOT arm it - that case is a
+                            // guaranteed no-op in GameViewModel.attemptMove and would
+                            // leave the flag stuck true with nothing to consume it).
+                            if (finalDelta != 0) {
+                                selfTriggeredMove = true
+                            }
                             onMove(id, finalDelta)
                             // Visual-only settle: board state is already authoritative via
                             // onMove above (or unchanged, if onMove is the Task 8 no-op).
