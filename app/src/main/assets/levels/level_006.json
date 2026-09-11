@@ -1,0 +1,16 @@
+{
+  "id": "level_006",
+  "gridSize": 6,
+  "exitRow": 4,
+  "vehicles": [
+    {"id": "primary", "orientation": "horizontal", "length": 3, "row": 4, "col": 0, "isPrimary": true},
+    {"id": "v1", "orientation": "horizontal", "length": 2, "row": 0, "col": 2, "isPrimary": false},
+    {"id": "v2", "orientation": "vertical", "length": 2, "row": 4, "col": 5, "isPrimary": false},
+    {"id": "v3", "orientation": "horizontal", "length": 2, "row": 0, "col": 4, "isPrimary": false},
+    {"id": "v4", "orientation": "horizontal", "length": 2, "row": 2, "col": 4, "isPrimary": false},
+    {"id": "v5", "orientation": "vertical", "length": 3, "row": 3, "col": 3, "isPrimary": false},
+    {"id": "v6", "orientation": "horizontal", "length": 2, "row": 1, "col": 3, "isPrimary": false},
+    {"id": "v7", "orientation": "horizontal", "length": 2, "row": 5, "col": 0, "isPrimary": false},
+    {"id": "v8", "orientation": "horizontal", "length": 2, "row": 2, "col": 2, "isPrimary": false}
+  ]
+}
