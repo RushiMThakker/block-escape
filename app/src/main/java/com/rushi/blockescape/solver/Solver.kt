@@ -11,6 +11,11 @@ object Solver {
      * [nextMove] is the first move of a shortest solution from the board passed to
      * [solve] (null when the board is already solved, or unsolvable). Defaulted so
      * existing call sites that only read [solvable]/[minMoves] are unaffected.
+     *
+     * When multiple first moves tie for the same shortest-path length, which one ends up
+     * here is an unspecified artifact of vehicle/delta iteration order, not a chosen
+     * "best" move among ties — any of them is a legitimate optimal hint, but don't rely
+     * on a specific tie always winning.
      */
     data class Result(val solvable: Boolean, val minMoves: Int, val nextMove: Move? = null)
 
