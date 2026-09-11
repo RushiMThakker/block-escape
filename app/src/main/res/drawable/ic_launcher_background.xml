@@ -1,14 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Adaptive-icon background layer: a simplified wood-grain square echoing the in-game
-    board (see BoardColors.kt / BoardBackground.kt for the full procedural version this
-    is a small static stand-in for). Colors are BoardColors' hex values duplicated here
-    because Kotlin Color(...) constants can't be referenced from XML resources — keep
+    Adaptive-icon background layer: a bold three-band "wood plank" treatment echoing the
+    in-game board (see BoardColors.kt / BoardBackground.kt for the full procedural version
+    this is a small static stand-in for). Colors are BoardColors' hex values duplicated
+    here because Kotlin Color(...) constants can't be referenced from XML resources — keep
     these in sync with BoardColors.kt if that palette ever changes.
 
     woodBase  = #8B5A2B
     woodDark  = #6B4423
     woodLight = #A6714A
+
+    v2: replaced the original fine diagonal grain-streak texture (5 thin alpha-blended
+    stripes at 0.22-0.38 alpha, plus faint vertical plank-seam hairlines) with three bold,
+    fully-opaque horizontal plank bands separated by solid dark seams. The fine grain was
+    real-device-verified to be essentially invisible once shrunk to launcher size (~48dp) —
+    at that scale, low-alpha 1-2dp-wide streaks just disappear into a flat brown blob. Solid
+    high-contrast bands read as "wood" at a glance even at icon size, which was the actual
+    design goal (see task notes on real-device launcher legibility).
 
     Full 108x108dp adaptive-icon canvas. The launcher masks this layer to its own shape
     (circle/squircle/rounded-square/etc); only the center ~72x72dp (66%) is guaranteed
@@ -21,52 +29,32 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Base plank color fills the whole canvas. -->
+    <!-- Base plank color fills the whole canvas (also the middle "plank" where the car
+         sits, since the top/light and bottom/dark bands below only cover their own
+         thirds). -->
     <path
         android:pathData="M0,0h108v108h-108z"
         android:fillColor="#8B5A2B" />
 
-    <!-- Diagonal grain streaks, alternating slightly darker/lighter than the base, to
-         read as wood without the full procedural noise of the real board renderer. -->
+    <!-- Top plank: lighter tone, full opacity. -->
     <path
-        android:pathData="M-12,14 L120,4 L120,11 L-12,21 Z"
-        android:fillColor="#6B4423"
-        android:fillAlpha="0.32" />
-    <path
-        android:pathData="M-12,33 L120,26 L120,33 L-12,40 Z"
-        android:fillColor="#A6714A"
-        android:fillAlpha="0.38" />
-    <path
-        android:pathData="M-12,52 L120,47 L120,54 L-12,59 Z"
-        android:fillColor="#6B4423"
-        android:fillAlpha="0.28" />
-    <path
-        android:pathData="M-12,71 L120,67 L120,74 L-12,78 Z"
-        android:fillColor="#A6714A"
-        android:fillAlpha="0.34" />
-    <path
-        android:pathData="M-12,90 L120,86 L120,93 L-12,97 Z"
-        android:fillColor="#6B4423"
-        android:fillAlpha="0.24" />
+        android:pathData="M0,0h108v32h-108z"
+        android:fillColor="#A6714A" />
 
-    <!-- Faint vertical plank seams. -->
+    <!-- Seam between top and middle planks. -->
     <path
-        android:pathData="M35,-4 L37.6,-4 L37.6,112 L35,112 Z"
-        android:fillColor="#6B4423"
-        android:fillAlpha="0.22" />
-    <path
-        android:pathData="M71,-4 L73.6,-4 L73.6,112 L71,112 Z"
-        android:fillColor="#6B4423"
-        android:fillAlpha="0.22" />
+        android:pathData="M0,32h108v5h-108z"
+        android:fillColor="#3B2A1B"
+        android:fillAlpha="0.7" />
 
-    <!-- Soft vignette toward the edges so the center (where the car sits) reads as the
-         focal point. -->
+    <!-- Seam between middle and bottom planks. -->
     <path
-        android:pathData="M0,0 L108,0 L108,10 L0,10 Z"
+        android:pathData="M0,71h108v5h-108z"
         android:fillColor="#3B2A1B"
-        android:fillAlpha="0.12" />
+        android:fillAlpha="0.7" />
+
+    <!-- Bottom plank: darker tone, full opacity. -->
     <path
-        android:pathData="M0,98 L108,98 L108,108 L0,108 Z"
-        android:fillColor="#3B2A1B"
-        android:fillAlpha="0.12" />
+        android:pathData="M0,76h108v32h-108z"
+        android:fillColor="#6B4423" />
 </vector>

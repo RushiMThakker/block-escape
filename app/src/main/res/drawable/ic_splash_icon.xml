@@ -3,7 +3,8 @@
     Icon for windowSplashScreenAnimatedIcon (core-splashscreen). Reuses the same
     board-chip + red-car art as the launcher icon (ic_launcher_background.xml /
     ic_launcher_foreground.xml) so the splash-to-app transition reads as "the same
-    icon", not a different piece of art.
+    icon", not a different piece of art. Kept in sync with v2 of that art (bold plank
+    bands, bigger outlined car, bolder exit glow) — see those files' comments for why.
 
     windowSplashScreenAnimatedIcon accepts a plain (non-animated) VectorDrawable just
     fine — "Animated" in the attribute name means animation is *supported*, not
@@ -44,60 +45,45 @@
                 android:pathData="M0,0h108v108h-108z"
                 android:fillColor="#8B5A2B" />
             <path
-                android:pathData="M-12,14 L120,4 L120,11 L-12,21 Z"
-                android:fillColor="#6B4423"
-                android:fillAlpha="0.32" />
+                android:pathData="M0,0h108v32h-108z"
+                android:fillColor="#A6714A" />
             <path
-                android:pathData="M-12,33 L120,26 L120,33 L-12,40 Z"
-                android:fillColor="#A6714A"
-                android:fillAlpha="0.38" />
+                android:pathData="M0,32h108v5h-108z"
+                android:fillColor="#3B2A1B"
+                android:fillAlpha="0.7" />
             <path
-                android:pathData="M-12,52 L120,47 L120,54 L-12,59 Z"
-                android:fillColor="#6B4423"
-                android:fillAlpha="0.28" />
+                android:pathData="M0,71h108v5h-108z"
+                android:fillColor="#3B2A1B"
+                android:fillAlpha="0.7" />
             <path
-                android:pathData="M-12,71 L120,67 L120,74 L-12,78 Z"
-                android:fillColor="#A6714A"
-                android:fillAlpha="0.34" />
-            <path
-                android:pathData="M-12,90 L120,86 L120,93 L-12,97 Z"
-                android:fillColor="#6B4423"
-                android:fillAlpha="0.24" />
-            <path
-                android:pathData="M35,-4 L37.6,-4 L37.6,112 L35,112 Z"
-                android:fillColor="#6B4423"
-                android:fillAlpha="0.22" />
-            <path
-                android:pathData="M71,-4 L73.6,-4 L73.6,112 L71,112 Z"
-                android:fillColor="#6B4423"
-                android:fillAlpha="0.22" />
+                android:pathData="M0,76h108v32h-108z"
+                android:fillColor="#6B4423" />
 
             <!-- exit glow -->
             <path
-                android:pathData="M92,42 L104,42 A10,10 0 0 1 104,66 L92,66 A10,10 0 0 1 92,42 Z"
+                android:pathData="M86,38 L104,38 A16,16 0 0 1 104,70 L86,70 A16,16 0 0 1 86,38 Z"
                 android:fillColor="#FFD54F"
-                android:fillAlpha="0.16" />
+                android:fillAlpha="0.35" />
             <path
-                android:pathData="M94,46 L104,46 A8,8 0 0 1 104,62 L94,62 A8,8 0 0 1 94,46 Z"
+                android:pathData="M90,44 L104,44 A11,11 0 0 1 104,64 L90,64 A11,11 0 0 1 90,44 Z"
                 android:fillColor="#FFD54F"
-                android:fillAlpha="0.26" />
-            <path
-                android:pathData="M96,49 L104,49 A6,6 0 0 1 104,59.5 L96,59.5 A6,6.25 0 0 1 96,49 Z"
-                android:fillColor="#FFD54F"
-                android:fillAlpha="0.38" />
+                android:fillAlpha="0.65" />
 
             <!-- car -->
             <path
-                android:pathData="M34,44 H80 A6,6 0 0 1 86,50 V58 A6,6 0 0 1 80,64 H34
-                                   A6,6 0 0 1 28,58 V50 A6,6 0 0 1 34,44 Z"
-                android:fillColor="#E53935" />
+                android:pathData="M33,40 H79 A7,7 0 0 1 86,47 V61 A7,7 0 0 1 79,68 H33
+                                   A7,7 0 0 1 26,61 V47 A7,7 0 0 1 33,40 Z"
+                android:fillColor="#E53935"
+                android:strokeColor="#3D0F0C"
+                android:strokeWidth="4"
+                android:strokeAlpha="1" />
             <path
-                android:pathData="M37,50 H77 V58 H37 Z"
+                android:pathData="M32,47 H80 V61 H32 Z"
                 android:fillColor="#6E1512"
                 android:fillAlpha="0.32" />
             <path
-                android:pathData="M34.5,46 H79.5 A2.5,2.5 0 0 1 82,48.5 A2.5,2.5 0 0 1 79.5,51 H34.5
-                                   A2.5,2.5 0 0 1 32,48.5 A2.5,2.5 0 0 1 34.5,46 Z"
+                android:pathData="M26.5,42 H85.5 A2.5,2.5 0 0 1 88,44.5 A2.5,2.5 0 0 1 85.5,47 H26.5
+                                   A2.5,2.5 0 0 1 24,44.5 A2.5,2.5 0 0 1 26.5,42 Z"
                 android:fillColor="#FFFFFF"
                 android:fillAlpha="0.4" />
         </group>
