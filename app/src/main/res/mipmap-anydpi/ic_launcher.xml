@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Pre-API-26 fallback: <adaptive-icon> (mipmap-anydpi-v26/ic_launcher.xml) only
+    resolves on API 26+, but this app's minSdk is 24. "anydpi" WITHOUT the "-v26"
+    qualifier resolves for every API level, including 24-25 — on API 26+ the more
+    specific "-v26" directory wins instead (version qualifiers take precedence in
+    Android's resource-matching order), so this file is only ever actually used on
+    Android 7.0/7.1. A <bitmap> alias just points at the flat, non-adaptive vector; AAPT
+    rasterizes it into the usual per-density launcher-icon PNGs at build time.
+-->
+<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
+    android:src="@drawable/ic_launcher_flat" />

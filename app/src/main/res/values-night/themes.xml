@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!--
+        Night-mode override for the splash background only: matches BlockEscapeTheme's
+        dark-mode `surface` (ui/theme/Theme.kt, #332417) for the same reason as the base
+        themes.xml — continuity with the color MainActivity's Surface paints the instant
+        Compose takes over, this time for a system-dark-mode cold start. Theme.BlockEscape
+        itself (the post-splash window theme) is intentionally NOT overridden here: it was
+        already a fixed light framework theme before this task (the manifest previously
+        hardcoded android:theme="@android:style/Theme.Material.Light.NoActionBar" with no
+        night variant), and Compose's BlockEscapeTheme is what actually switches the
+        visible UI to dark colors regardless of this XML theme — so this preserves prior
+        behavior rather than introducing a new light/dark split in the window theme.
+    -->
+    <style name="Theme.BlockEscape.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#332417</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_icon</item>
+        <item name="postSplashScreenTheme">@style/Theme.BlockEscape</item>
+    </style>
+
+</resources>

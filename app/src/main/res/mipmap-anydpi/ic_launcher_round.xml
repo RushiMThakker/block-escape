@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- See ic_launcher.xml in this same directory — identical pre-API-26 fallback
+     reasoning applies to the round-icon slot. -->
+<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
+    android:src="@drawable/ic_launcher_flat" />

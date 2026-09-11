@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!--
+        The app's real runtime theming (colors, typography) is entirely owned by Compose
+        (BlockEscapeTheme in ui/theme/Theme.kt), which reads isSystemInDarkTheme() itself
+        at composition time. This XML theme only needs to be a reasonable base/window
+        theme for the brief moment before Compose takes over — it deliberately does not
+        duplicate BlockEscapeTheme's custom color scheme.
+
+        Parented on the framework's own Theme.Material.Light.NoActionBar (same base the
+        manifest used directly before this theme existed) rather than an AppCompat/
+        Material-Components DayNight theme, since this project has no dependency on
+        com.google.android.material:material or androidx.appcompat — adding one just to
+        get a named XML theme would be new dependency surface with no runtime benefit,
+        given Compose already owns all real theming and dark-mode switching.
+    -->
+    <style name="Theme.BlockEscape" parent="@android:style/Theme.Material.Light.NoActionBar" />
+
+    <!--
+        Starting theme shown before/during the cold-start splash screen (see MainActivity
+        .installSplashScreen()). windowSplashScreenBackground is set to the same warm tone
+        as BlockEscapeTheme's light-mode `surface` (ui/theme/Theme.kt, #F4EBDC) — that's
+        the color MainActivity's outer Surface actually paints as soon as Compose takes
+        over (Surface() with no explicit color defaults to MaterialTheme.colorScheme.
+        surface), so the splash-to-app handoff is a same-color continuation rather than a
+        flash-then-swap. (Duplicated as a hex literal because Kotlin Color(...) values
+        can't be referenced from XML — see BoardColors.kt for the established precedent
+        of this same duplication.)
+    -->
+    <style name="Theme.BlockEscape.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#F4EBDC</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_icon</item>
+        <item name="postSplashScreenTheme">@style/Theme.BlockEscape</item>
+    </style>
+
+</resources>

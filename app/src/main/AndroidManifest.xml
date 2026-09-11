@@ -9,7 +9,9 @@
     <application
         android:allowBackup="true"
         android:label="@string/app_name"
-        android:theme="@android:style/Theme.Material.Light.NoActionBar"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:theme="@style/Theme.BlockEscape"
         android:supportsRtl="true">
 
         <!-- AdMob App ID. Currently Google's public TEST App ID (see admob_app_id in
@@ -19,8 +21,15 @@
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="@string/admob_app_id" />
 
+        <!-- android:theme="Theme.BlockEscape.Starting" here (rather than on
+             <application>) follows the documented core-splashscreen pattern of scoping
+             the starting theme to the launcher Activity specifically — MainActivity's
+             installSplashScreen() call (see MainActivity.kt) reads this theme, shows the
+             splash, then switches the window to postSplashScreenTheme
+             (Theme.BlockEscape, see values/themes.xml) once the first frame is ready. -->
         <activity
             android:name=".MainActivity"
+            android:theme="@style/Theme.BlockEscape.Starting"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

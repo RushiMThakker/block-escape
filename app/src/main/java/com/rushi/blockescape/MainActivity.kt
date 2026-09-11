@@ -11,6 +11,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.google.android.gms.ads.MobileAds
 import com.rushi.blockescape.level.LevelPack
 import com.rushi.blockescape.level.LevelRepository
@@ -20,6 +21,10 @@ import com.rushi.blockescape.ui.theme.BlockEscapeTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Must be called before super.onCreate() — this is the documented
+        // core-splashscreen requirement (it installs the splash screen by adjusting the
+        // activity's theme before the window is created).
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         // Fire-and-forget: doesn't need to block startup, just needs to happen before
         // BannerAdView requests its first ad.

@@ -45,6 +45,7 @@ dependencies {
     implementation(libs.compose.material3)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.play.services.ads)
+    implementation(libs.core.splashscreen)
     debugImplementation(libs.compose.ui.tooling)
 
     testImplementation(libs.junit)
