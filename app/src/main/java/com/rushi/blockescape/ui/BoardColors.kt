@@ -9,6 +9,11 @@ object BoardColors {
     val gridLine = Color(0x33000000)
     val exitGlow = Color(0xFFFFD54F)
 
+    // A distinct-but-related amber for the hint highlight/arrow and its HUD button - warm
+    // enough to sit naturally alongside exitGlow without being mistaken for "you've
+    // reached the exit" (it's a touch more saturated/orange than exitGlow's soft yellow).
+    val hintGlow = Color(0xFFFFB300)
+
     val vehiclePrimary = Color(0xFFE53935)
     val vehiclePalette = listOf(
         Color(0xFF1E88E5),

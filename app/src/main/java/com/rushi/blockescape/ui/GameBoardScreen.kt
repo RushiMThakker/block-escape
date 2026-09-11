@@ -1,7 +1,12 @@
 package com.rushi.blockescape.ui
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -24,23 +29,44 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import com.rushi.blockescape.domain.Board
 import com.rushi.blockescape.domain.Orientation
 import com.rushi.blockescape.domain.Vehicle
+import com.rushi.blockescape.solver.Solver
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 @Composable
-fun GameBoardScreen(board: Board, onMove: (String, Int) -> Unit = { _, _ -> }) {
+fun GameBoardScreen(board: Board, hint: Solver.Move? = null, onMove: (String, Int) -> Unit = { _, _ -> }) {
     var cellPx by remember { mutableFloatStateOf(0f) }
     var draggingId by remember { mutableStateOf<String?>(null) }
     var dragOffsetCells by remember { mutableFloatStateOf(0f) }
     var isShaking by remember { mutableStateOf(false) }
     val shake = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
+
+    // Drives the hint highlight's breathing glow/arrow. Declared unconditionally (cheap -
+    // one float animation) rather than only when a hint is active, so entering/leaving
+    // the hinted state never has to start/stop/rebuild an infinite-transition - it simply
+    // starts being read (or stops being read) inside the draw block below. Compose's
+    // snapshot system only invalidates drawing on `pulse` changes while something is
+    // actually reading it in the draw phase, so this costs nothing extra while no hint is
+    // shown.
+    val hintPulseTransition = rememberInfiniteTransition(label = "hintPulse")
+    val hintPulse by hintPulseTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 900, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "hintPulseValue"
+    )
 
     // Distinguishes a SELF-caused board change (the direct result of this composable's
     // own onMove(id, finalDelta) call in onDragEnd below) from a genuinely EXTERNAL one
@@ -202,6 +228,13 @@ fun GameBoardScreen(board: Board, onMove: (String, Int) -> Unit = { _, _ -> }) {
         board.vehicles.forEach { vehicle ->
             val offsetCells = if (vehicle.id == draggingId) dragOffsetCells else 0f
             val shakePx = if (vehicle.id == draggingId) shake.value * 6f else 0f
+            // Drawn BEHIND the vehicle body (glow) so the vehicle itself stays fully
+            // legible on top; tracks the same offset/shake as the vehicle so it stays
+            // glued to it even mid-drag, in the rare case the hinted vehicle is also the
+            // one currently being dragged.
+            if (hint != null && vehicle.id == hint.vehicleId) {
+                drawHintHighlight(vehicle, cellPx, offsetCells, shakePx, hintPulse, direction = if (hint.delta >= 0) 1 else -1)
+            }
             drawVehicle(vehicle, cellPx, offsetCells, shakePx, isPrimary = vehicle.isPrimary)
         }
     }
@@ -267,4 +300,108 @@ private fun DrawScope.drawVehicle(
         size = bodySize,
         cornerRadius = cornerRadius
     )
+}
+
+// Hint indicator for the vehicle the solver says to move next: a soft breathing amber
+// glow hugging its body, plus a small directional chevron pointing which way to slide it.
+// Geometry mirrors drawVehicle's own topLeft/bodySize/cornerRadius math exactly (so the
+// glow sits flush against the vehicle it's for) but this function never mutates any drag/
+// gesture state - it only reads the same offsetCells/shakePx values GameBoardScreen
+// already computed for the vehicle this frame, purely to stay visually glued to it.
+private fun DrawScope.drawHintHighlight(
+    vehicle: Vehicle,
+    cellPx: Float,
+    offsetCells: Float,
+    shakePx: Float,
+    pulse: Float,
+    direction: Int
+) {
+    val margin = cellPx * 0.08f
+    val baseX = vehicle.col * cellPx
+    val baseY = vehicle.row * cellPx
+    val (x, y) = when (vehicle.orientation) {
+        Orientation.HORIZONTAL -> Offset(baseX + offsetCells * cellPx + shakePx, baseY)
+        Orientation.VERTICAL -> Offset(baseX + shakePx, baseY + offsetCells * cellPx)
+    }
+    val w = if (vehicle.orientation == Orientation.HORIZONTAL) vehicle.length * cellPx else cellPx
+    val h = if (vehicle.orientation == Orientation.VERTICAL) vehicle.length * cellPx else cellPx
+
+    val topLeft = Offset(x + margin, y + margin)
+    val bodySize = Size(w - margin * 2, h - margin * 2)
+    val cornerRadius = CornerRadius(cellPx * 0.25f, cellPx * 0.25f)
+
+    // A couple of concentric, low-alpha strokes stepping outward from the body - a cheap
+    // stand-in for a real blur (consistent with how BoardBackground fakes soft edges
+    // elsewhere in this project) - breathing outward/brighter with `pulse` so it reads as
+    // a gentle beacon rather than a static debug rectangle.
+    for (ring in 0..2) {
+        val expand = cellPx * (0.05f + ring * 0.06f) * (0.75f + pulse * 0.25f)
+        drawRoundRect(
+            color = BoardColors.hintGlow.copy(alpha = (0.22f + pulse * 0.18f) * (1f - ring * 0.32f)),
+            topLeft = Offset(topLeft.x - expand, topLeft.y - expand),
+            size = Size(bodySize.width + expand * 2f, bodySize.height + expand * 2f),
+            cornerRadius = CornerRadius(cornerRadius.x + expand, cornerRadius.y + expand),
+            style = Stroke(width = cellPx * 0.045f)
+        )
+    }
+
+    // Crisp outline hugging the body itself, brightening at the top of the pulse.
+    drawRoundRect(
+        color = BoardColors.hintGlow.copy(alpha = 0.55f + pulse * 0.45f),
+        topLeft = topLeft,
+        size = bodySize,
+        cornerRadius = cornerRadius,
+        style = Stroke(width = cellPx * (0.05f + pulse * 0.02f))
+    )
+
+    drawHintArrow(vehicle, cellPx, topLeft, bodySize, direction, pulse)
+}
+
+// Small solid chevron just beyond the hinted vehicle's leading edge, pointing the way it
+// should slide, gently bobbing outward on the same pulse phase as the glow so the two
+// read as one animated indicator rather than two unrelated effects.
+private fun DrawScope.drawHintArrow(
+    vehicle: Vehicle,
+    cellPx: Float,
+    topLeft: Offset,
+    bodySize: Size,
+    direction: Int,
+    pulse: Float
+) {
+    val arrowHalfSpan = cellPx * 0.16f
+    val bob = cellPx * 0.09f * pulse
+    val standoff = cellPx * 0.14f + bob
+
+    val center = if (vehicle.orientation == Orientation.HORIZONTAL) {
+        val cy = topLeft.y + bodySize.height / 2f
+        val cx = if (direction > 0) topLeft.x + bodySize.width + standoff else topLeft.x - standoff
+        Offset(cx, cy)
+    } else {
+        val cx = topLeft.x + bodySize.width / 2f
+        val cy = if (direction > 0) topLeft.y + bodySize.height + standoff else topLeft.y - standoff
+        Offset(cx, cy)
+    }
+
+    val path = Path().apply {
+        if (vehicle.orientation == Orientation.HORIZONTAL) {
+            val tipX = center.x + arrowHalfSpan * direction
+            val backX = center.x - arrowHalfSpan * direction
+            moveTo(tipX, center.y)
+            lineTo(backX, center.y - arrowHalfSpan)
+            lineTo(backX, center.y + arrowHalfSpan)
+            close()
+        } else {
+            val tipY = center.y + arrowHalfSpan * direction
+            val backY = center.y - arrowHalfSpan * direction
+            moveTo(center.x, tipY)
+            lineTo(center.x - arrowHalfSpan, backY)
+            lineTo(center.x + arrowHalfSpan, backY)
+            close()
+        }
+    }
+
+    // Thin dark outline first so the chevron stays legible over any vehicle color or the
+    // wood-grain background, then the warm fill (brightening at the top of the pulse) on top.
+    drawPath(path = path, color = Color.Black.copy(alpha = 0.28f), style = Stroke(width = 2.5f))
+    drawPath(path = path, color = BoardColors.hintGlow.copy(alpha = 0.85f + pulse * 0.15f))
 }

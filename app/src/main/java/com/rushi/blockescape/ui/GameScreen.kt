@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,6 +42,7 @@ fun GameScreen(
     val board = viewModel.board.value
     val moveCount = viewModel.moveCount.value
     val isWon = viewModel.isWon.value
+    val hint = viewModel.hint.value
 
     val colorScheme = MaterialTheme.colorScheme
 
@@ -90,6 +92,16 @@ fun GameScreen(
             ) {
                 Text("Moves: $moveCount", style = MaterialTheme.typography.titleMedium)
                 Row {
+                    // Tied visually to the on-board highlight: same warm amber, so the
+                    // button reads as "the source" of the glow that appears on the board.
+                    Button(
+                        onClick = { viewModel.requestHint() },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = BoardColors.hintGlow,
+                            contentColor = Color(0xFF3B2A1B)
+                        )
+                    ) { Text("Hint") }
+                    Spacer(modifier = Modifier.padding(4.dp))
                     Button(onClick = { viewModel.undo() }) { Text("Undo") }
                     Spacer(modifier = Modifier.padding(4.dp))
                     Button(onClick = { viewModel.restart() }) { Text("Restart") }
@@ -137,7 +149,7 @@ fun GameScreen(
                             }
                         }
                 )
-                GameBoardScreen(board = board, onMove = viewModel::attemptMove)
+                GameBoardScreen(board = board, hint = hint, onMove = viewModel::attemptMove)
             }
 
             // Ad stub (see ads/AdConfig.kt) pinned as the last item in this Column, so it
