@@ -11,6 +11,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.google.android.gms.ads.MobileAds
 import com.rushi.blockescape.level.LevelPack
 import com.rushi.blockescape.level.LevelRepository
 import com.rushi.blockescape.ui.GameScreen
@@ -20,6 +21,9 @@ import com.rushi.blockescape.ui.theme.BlockEscapeTheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Fire-and-forget: doesn't need to block startup, just needs to happen before
+        // BannerAdView requests its first ad.
+        MobileAds.initialize(this) { }
         setContent {
             BlockEscapeTheme {
                 Surface(modifier = Modifier) {

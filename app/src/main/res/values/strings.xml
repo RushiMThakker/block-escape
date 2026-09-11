@@ -1,3 +1,9 @@
 <resources>
     <string name="app_name">Block Escape</string>
+
+    <!-- Google's official public TEST AdMob App ID (developers.google.com/admob/android/quick-start).
+         Safe to commit — not tied to any real AdMob account. Before a release build /
+         Play Store submission, replace this value with the real App ID from the AdMob
+         console (see also ads/AdConfig.kt for the matching banner ad unit ID). -->
+    <string name="admob_app_id" translatable="false">ca-app-pub-3940256099942544~3347511713</string>
 </resources>
