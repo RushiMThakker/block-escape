@@ -33,10 +33,12 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.rushi.blockescape.domain.Board
 import com.rushi.blockescape.domain.Orientation
 import com.rushi.blockescape.domain.Vehicle
+import com.rushi.blockescape.haptics.HapticFeedback
 import com.rushi.blockescape.solver.Solver
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -49,6 +51,39 @@ fun GameBoardScreen(board: Board, hint: Solver.Move? = null, onMove: (String, In
     var isShaking by remember { mutableStateOf(false) }
     val shake = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
+
+    val context = LocalContext.current
+    val haptics = remember(context) { HapticFeedback(context) }
+
+    // ---------------------------------------------------------------------------------
+    // Purely-visual "the car drives out through the exit" flourish for the primary
+    // vehicle on winning. This is entirely independent of the drag/settle/shake state
+    // above and below: its own Animatable, driven by its own LaunchedEffect keyed only
+    // on board.isSolved, never written to by (and never writing to) draggingId/
+    // dragOffsetCells/shake/isShaking/selfTriggeredMove or the pointerInput/
+    // detectDragGestures block. Its value is read only where the primary vehicle is
+    // drawn below, as an extra offset added ON TOP of (never replacing) that vehicle's
+    // existing offsetCells/shakePx draw math.
+    // ---------------------------------------------------------------------------------
+    val exitExtraCells = remember { Animatable(0f) }
+    LaunchedEffect(board.isSolved) {
+        if (board.isSolved) {
+            // Slide the primary vehicle forward by its own length (enough to carry its
+            // trailing edge past where its leading edge was, i.e. fully past the board's
+            // right edge - the vehicle's front is already flush with that edge the
+            // instant the puzzle is solved) plus a bit more so it reads as clearly gone
+            // rather than just barely off-frame.
+            val primary = board.vehicles.first { it.isPrimary }
+            exitExtraCells.animateTo(
+                targetValue = primary.length.toFloat() + 0.6f,
+                animationSpec = tween(durationMillis = 550, easing = FastOutSlowInEasing)
+            )
+        } else {
+            // Snap (not animate) back to 0 so an undo/restart out of a won state never
+            // leaves a stale offset visible on the next composition.
+            exitExtraCells.snapTo(0f)
+        }
+    }
 
     // Drives the hint highlight's breathing glow/arrow. Declared unconditionally (cheap -
     // one float animation) rather than only when a hint is active, so entering/leaving
@@ -137,6 +172,7 @@ fun GameBoardScreen(board: Board, hint: Solver.Move? = null, onMove: (String, In
                         // once on the not-blocked -> blocked transition.
                         if (proposed != clamped && !isShaking) {
                             isShaking = true
+                            haptics.blockedMove()
                             scope.launch {
                                 shake.snapTo(0f)
                                 shake.animateTo(1f, tween(60))
@@ -228,6 +264,10 @@ fun GameBoardScreen(board: Board, hint: Solver.Move? = null, onMove: (String, In
         board.vehicles.forEach { vehicle ->
             val offsetCells = if (vehicle.id == draggingId) dragOffsetCells else 0f
             val shakePx = if (vehicle.id == draggingId) shake.value * 6f else 0f
+            // Extra exit-flourish offset (see exitExtraCells above) - only ever nonzero
+            // for the primary vehicle, and only once board.isSolved is true. Added on
+            // top of, not instead of, the drag/settle offset this vehicle already has.
+            val exitOffsetPx = if (vehicle.isPrimary) exitExtraCells.value * cellPx else 0f
             // Drawn BEHIND the vehicle body (glow) so the vehicle itself stays fully
             // legible on top; tracks the same offset/shake as the vehicle so it stays
             // glued to it even mid-drag, in the rare case the hinted vehicle is also the
@@ -235,7 +275,7 @@ fun GameBoardScreen(board: Board, hint: Solver.Move? = null, onMove: (String, In
             if (hint != null && vehicle.id == hint.vehicleId) {
                 drawHintHighlight(vehicle, cellPx, offsetCells, shakePx, hintPulse, direction = if (hint.delta >= 0) 1 else -1)
             }
-            drawVehicle(vehicle, cellPx, offsetCells, shakePx, isPrimary = vehicle.isPrimary)
+            drawVehicle(vehicle, cellPx, offsetCells, shakePx, isPrimary = vehicle.isPrimary, extraOffsetPx = exitOffsetPx)
         }
     }
 }
@@ -262,14 +302,15 @@ private fun DrawScope.drawVehicle(
     cellPx: Float,
     offsetCells: Float,
     shakePx: Float,
-    isPrimary: Boolean
+    isPrimary: Boolean,
+    extraOffsetPx: Float = 0f
 ) {
     val margin = cellPx * 0.08f
     val baseX = vehicle.col * cellPx
     val baseY = vehicle.row * cellPx
     val (x, y) = when (vehicle.orientation) {
-        Orientation.HORIZONTAL -> Offset(baseX + offsetCells * cellPx + shakePx, baseY)
-        Orientation.VERTICAL -> Offset(baseX + shakePx, baseY + offsetCells * cellPx)
+        Orientation.HORIZONTAL -> Offset(baseX + offsetCells * cellPx + shakePx + extraOffsetPx, baseY)
+        Orientation.VERTICAL -> Offset(baseX + shakePx, baseY + offsetCells * cellPx + extraOffsetPx)
     }
     val w = if (vehicle.orientation == Orientation.HORIZONTAL) vehicle.length * cellPx else cellPx
     val h = if (vehicle.orientation == Orientation.VERTICAL) vehicle.length * cellPx else cellPx

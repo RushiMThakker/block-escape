@@ -1,5 +1,12 @@
 package com.rushi.blockescape.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
@@ -19,17 +26,25 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.rushi.blockescape.ads.BannerAdView
+import com.rushi.blockescape.haptics.HapticFeedback
+import kotlinx.coroutines.delay
 
 @Composable
 fun GameScreen(
@@ -43,6 +58,49 @@ fun GameScreen(
     val moveCount = viewModel.moveCount.value
     val isWon = viewModel.isWon.value
     val hint = viewModel.hint.value
+
+    val context = LocalContext.current
+    val haptics = remember(context) { HapticFeedback(context) }
+
+    // Move-committed haptic: fires only when moveCount goes UP (an actual committed
+    // move), never on this composable's initial composition and never on the drop back
+    // to a lower count from undo() or the reset-to-zero from restart() - those get their
+    // own explicit button-tap haptic instead (see the Undo/Restart onClick handlers
+    // below), so they don't also double-fire this one.
+    var previousMoveCount by remember { mutableIntStateOf(moveCount) }
+    LaunchedEffect(moveCount) {
+        if (moveCount > previousMoveCount) haptics.moveCommitted()
+        previousMoveCount = moveCount
+    }
+
+    // Win haptic: fires only on the false -> true transition of isWon, so it never
+    // repeats while the win overlay stays up across recompositions.
+    var previousIsWon by remember { mutableStateOf(isWon) }
+    LaunchedEffect(isWon) {
+        if (isWon && !previousIsWon) haptics.win()
+        previousIsWon = isWon
+    }
+
+    // Hint haptic: fires whenever a (new) hint becomes available. GameViewModel always
+    // clears hint to null before recomputing it (see requestHint/attemptMove/undo/
+    // restart), so in practice this corresponds 1:1 with the player tapping "Hint."
+    LaunchedEffect(hint) {
+        if (hint != null) haptics.hintShown()
+    }
+
+    // Delays the win overlay's own appearance by a short beat after isWon flips true, so
+    // GameBoardScreen's car-exit-through-the-glow flourish gets a moment to actually be
+    // visible before this full-screen overlay covers the board. Resets instantly (no
+    // delay) the moment isWon goes back to false, e.g. via restart()/Play Again.
+    var showWinOverlay by remember { mutableStateOf(false) }
+    LaunchedEffect(isWon) {
+        if (isWon) {
+            delay(280)
+            showWinOverlay = true
+        } else {
+            showWinOverlay = false
+        }
+    }
 
     val colorScheme = MaterialTheme.colorScheme
 
@@ -95,16 +153,16 @@ fun GameScreen(
                     // Tied visually to the on-board highlight: same warm amber, so the
                     // button reads as "the source" of the glow that appears on the board.
                     Button(
-                        onClick = { viewModel.requestHint() },
+                        onClick = { haptics.buttonTap(); viewModel.requestHint() },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = BoardColors.hintGlow,
                             contentColor = Color(0xFF3B2A1B)
                         )
                     ) { Text("Hint") }
                     Spacer(modifier = Modifier.padding(4.dp))
-                    Button(onClick = { viewModel.undo() }) { Text("Undo") }
+                    Button(onClick = { haptics.buttonTap(); viewModel.undo() }) { Text("Undo") }
                     Spacer(modifier = Modifier.padding(4.dp))
-                    Button(onClick = { viewModel.restart() }) { Text("Restart") }
+                    Button(onClick = { haptics.buttonTap(); viewModel.restart() }) { Text("Restart") }
                 }
             }
 
@@ -172,7 +230,23 @@ fun GameScreen(
             }
         }
 
-        if (isWon) {
+        // Real entrance transition for the win moment instead of an instant appearance:
+        // fades in while scaling up from a slightly-shrunk 0.85 to full size, reading as
+        // a satisfying "pop" consistent with the board's own glossy/pulsing visual style
+        // (drawVehicle's highlight, drawHintHighlight's breathing glow) rather than a
+        // flat fade. `showWinOverlay` (not `isWon` directly) drives visibility so this
+        // gets its short delayed beat after winning - see the LaunchedEffect(isWon)
+        // above.
+        AnimatedVisibility(
+            visible = showWinOverlay,
+            enter = fadeIn(animationSpec = tween(durationMillis = 320)) +
+                scaleIn(
+                    initialScale = 0.85f,
+                    animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing)
+                ),
+            exit = fadeOut(animationSpec = tween(durationMillis = 150)) +
+                scaleOut(targetScale = 0.9f, animationSpec = tween(durationMillis = 150))
+        ) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -183,11 +257,11 @@ fun GameScreen(
                     Text("Solved in $moveCount moves!", style = MaterialTheme.typography.headlineMedium, color = Color.White)
                     Spacer(modifier = Modifier.padding(8.dp))
                     if (hasNextLevel) {
-                        Button(onClick = onNextLevel) { Text("Next Level") }
+                        Button(onClick = { haptics.buttonTap(); onNextLevel() }) { Text("Next Level") }
                         Spacer(modifier = Modifier.padding(4.dp))
-                        Button(onClick = { viewModel.restart() }) { Text("Play Again") }
+                        Button(onClick = { haptics.buttonTap(); viewModel.restart() }) { Text("Play Again") }
                     } else {
-                        Button(onClick = { viewModel.restart() }) { Text("Play Again") }
+                        Button(onClick = { haptics.buttonTap(); viewModel.restart() }) { Text("Play Again") }
                     }
                 }
             }
