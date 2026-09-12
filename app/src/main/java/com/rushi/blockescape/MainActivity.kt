@@ -16,6 +16,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.google.android.gms.ads.MobileAds
+import com.rushi.blockescape.level.LevelBestMoves
 import com.rushi.blockescape.level.LevelPack
 import com.rushi.blockescape.level.LevelRepository
 import com.rushi.blockescape.progress.ProgressStore
@@ -88,11 +89,27 @@ private fun BlockEscapeApp(context: Context) {
         }
     }
 
+    // The solver's best-possible move count for every level, one entry per index into
+    // `levelFiles` - null until the background solve finishes. LevelBestMoves.getOrCompute
+    // runs the real BFS solver off the main thread and caches the result for the rest of
+    // the process's lifetime (see its doc for the measured cost/why this isn't done
+    // synchronously), so LaunchedEffect(Unit) - fires exactly once for as long as this
+    // composable stays in composition, which for the app's single root composable means
+    // once per process, matching the cache's own lifetime - is enough; navigating back and
+    // forth between level-select and gameplay never re-triggers it. Both screens below
+    // degrade gracefully to "no number yet" while this is still null/incomplete, rather
+    // than blocking on it.
+    var bestMoveCounts by remember { mutableStateOf<List<Int>?>(null) }
+    LaunchedEffect(Unit) {
+        bestMoveCounts = LevelBestMoves.getOrCompute(context)
+    }
+
     when (val current = screen) {
         is Screen.LevelSelect -> {
             LevelSelectScreen(
                 totalLevels = levelFiles.size,
                 clearedCount = clearedCount,
+                bestMoveCounts = bestMoveCounts ?: emptyList(),
                 onLevelSelected = { idx -> screen = Screen.Game(idx) }
             )
         }
@@ -121,7 +138,8 @@ private fun BlockEscapeApp(context: Context) {
                 onLevelCleared = {
                     progressStore.markLevelCleared(levelIndex, levelFiles.size)
                     clearedCount = progressStore.clearedCount()
-                }
+                },
+                bestMoves = bestMoveCounts?.getOrNull(levelIndex)
             )
         }
     }

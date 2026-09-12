@@ -53,7 +53,13 @@ fun GameScreen(
     hasNextLevel: Boolean = false,
     onNextLevel: () -> Unit = {},
     onBackToLevels: () -> Unit = {},
-    onLevelCleared: () -> Unit = {}
+    onLevelCleared: () -> Unit = {},
+    // The solver's best-possible move count for this specific level (see
+    // LevelBestMoves.kt), for the win overlay's "(Best: N)" comparison below. Nullable
+    // (default null) rather than required: the caller may not have this ready yet (the
+    // background solve is still in flight) or may simply not want the comparison shown -
+    // either way this screen degrades gracefully to the plain "Solved in N moves!" text.
+    bestMoves: Int? = null
 ) {
     val board = viewModel.board.value
     val moveCount = viewModel.moveCount.value
@@ -254,7 +260,12 @@ fun GameScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Solved in $moveCount moves!", style = MaterialTheme.typography.headlineMedium, color = Color.White)
+                    Text(
+                        winOverlayMovesText(moveCount, bestMoves),
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = Color.White,
+                        textAlign = TextAlign.Center
+                    )
                     Spacer(modifier = Modifier.padding(8.dp))
                     if (hasNextLevel) {
                         Button(onClick = { onNextLevel() }) { Text("Next Level") }
@@ -268,3 +279,16 @@ fun GameScreen(
         }
     }
 }
+
+/**
+ * Text for the win overlay's move-count line, with an optional "(Best: N)" comparison
+ * against the solver's best-possible count for this level. Pure and separately
+ * unit-testable (see GameScreenTextTest.kt) from the Compose rendering around it - same
+ * pure-logic/UI-wrapper split as ProgressStore.kt's nextClearedCount. [bestMoves] null
+ * (the level's best count isn't available - see LevelBestMoves.kt) simply omits the
+ * comparison rather than showing a misleading placeholder; any relationship between
+ * [moveCount] and [bestMoves] - beating par, matching it exactly, or landing above it -
+ * reads sensibly with this same one-line wording, no special-casing needed.
+ */
+fun winOverlayMovesText(moveCount: Int, bestMoves: Int?): String =
+    if (bestMoves != null) "Solved in $moveCount moves! (Best: $bestMoves)" else "Solved in $moveCount moves!"

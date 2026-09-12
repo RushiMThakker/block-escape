@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.sp
 fun LevelSelectScreen(
     totalLevels: Int,
     clearedCount: Int,
+    bestMoveCounts: List<Int>,
     onLevelSelected: (Int) -> Unit
 ) {
     val colorScheme = MaterialTheme.colorScheme
@@ -101,9 +102,17 @@ fun LevelSelectScreen(
                     .padding(top = 20.dp)
             ) {
                 items(totalLevels) { index ->
+                    val state = levelTileState(index, clearedCount)
                     LevelTile(
                         levelNumber = index + 1,
-                        state = levelTileState(index, clearedCount),
+                        state = state,
+                        // Locked tiles never reveal this - same "keep some mystery" rule
+                        // as the lock glyph hiding everything else about a level the
+                        // player hasn't reached yet. bestMoveCounts.getOrNull rather than
+                        // indexing directly: while the background solve is still in
+                        // flight (see LevelBestMoves.kt) this list may briefly be empty,
+                        // and a tile with no number yet is a harmless no-op, not a crash.
+                        bestMoves = if (state == LevelTileState.LOCKED) null else bestMoveCounts.getOrNull(index),
                         onClick = { onLevelSelected(index) }
                     )
                 }
@@ -124,6 +133,7 @@ private fun levelTileState(index: Int, clearedCount: Int): LevelTileState = when
 private fun LevelTile(
     levelNumber: Int,
     state: LevelTileState,
+    bestMoves: Int?,
     onClick: () -> Unit
 ) {
     val colorScheme = MaterialTheme.colorScheme
@@ -192,8 +202,30 @@ private fun LevelTile(
                 )
                 LevelTileState.UNLOCKED -> Unit
             }
+            // The solver's best-possible move count for this level (see LevelBestMoves.kt)
+            // - a third, smaller line so it reads as a footnote to the level number/state
+            // above rather than competing with them. bestMoves is already null for locked
+            // tiles (enforced at the call site), so this naturally never renders there.
+            bestMovesTileLabel(bestMoves)?.let { label ->
+                Text(
+                    text = label,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = contentColor.copy(alpha = 0.85f)
+                )
+            }
         }
     }
 }
 
 private data class TileStyle(val fill: Color, val border: Color, val contentColor: Color, val clickable: Boolean)
+
+/**
+ * Text for a level-select tile's best-possible-move-count footnote, or null to render
+ * nothing. Pure and separately unit-testable (see LevelSelectScreenTextTest.kt) from the
+ * Compose rendering around it - same pure-logic/UI-wrapper split as ProgressStore.kt's
+ * nextClearedCount. [bestMoves] is null both for locked tiles (the call site never passes
+ * a value there) and for any tile whose number hasn't been computed yet (see
+ * LevelBestMoves.kt) - either way, omitting the line is the right behavior, not an error.
+ */
+fun bestMovesTileLabel(bestMoves: Int?): String? = bestMoves?.let { "Best: $it" }
