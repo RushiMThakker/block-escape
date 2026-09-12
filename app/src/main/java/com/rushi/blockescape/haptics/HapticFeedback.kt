@@ -7,9 +7,13 @@ import android.os.Vibrator
 import android.os.VibratorManager
 
 /**
- * Thin, Context-based wrapper around Android's vibration APIs for short UI feedback
- * (move committed, blocked move, hint, win, button taps). This app's minSdk is 24 and
- * targetSdk/compileSdk is 35, so this class has to bridge three API-level splits:
+ * Thin, Context-based wrapper around Android's vibration APIs for short UI feedback.
+ *
+ * Originally had five effects (move/button/blocked/hint/win); Rushi found the frequent
+ * ones (a buzz on every single move and every button tap) too noisy in practice, so only
+ * two remain - blocked-move and win - both toned down from their original intensity too.
+ * This app's minSdk is 24 and targetSdk/compileSdk is 35, so this class has to bridge
+ * three API-level splits:
  *
  *  - Obtaining the vibrator: API 31+ (S) requires going through [VibratorManager]
  *    (`Context.getSystemService(VibratorManager::class.java)` /
@@ -45,29 +49,18 @@ class HapticFeedback(context: Context) {
         null
     }
 
-    /** Move committed: a quick, light confirmation tap - the "yes" of dragging a vehicle. */
-    fun moveCommitted() = oneShot(durationMs = 15, amplitude = 90)
-
     /**
-     * Button press (Undo/Restart/Hint/Next Level/Play Again): a touch shorter and
-     * lighter than the move tap, so it reads as "acknowledged" rather than "moved."
+     * Blocked move: a brief, gentle buzz signaling "no" - softened from an earlier,
+     * sharper version that felt too aggressive for something that can happen many times
+     * per puzzle.
      */
-    fun buttonTap() = oneShot(durationMs = 10, amplitude = 55)
-
-    /**
-     * Blocked move: a firmer, sharper buzz - longer and noticeably stronger than the
-     * move tap so it reads as "no" against the move tap's "yes" rather than a duplicate
-     * of it.
-     */
-    fun blockedMove() = oneShot(durationMs = 45, amplitude = 200)
-
-    /** Hint appearing: a soft, gentle pulse - longer but much lower-intensity than a tap. */
-    fun hintShown() = oneShot(durationMs = 70, amplitude = 45)
+    fun blockedMove() = oneShot(durationMs = 30, amplitude = 110)
 
     /**
      * Win: the payoff moment. A short two-pulse pattern that builds (a light pulse, a
-     * beat, then a stronger one) rather than a single generic buzz, so it feels like a
-     * distinct little celebration instead of "the same tap, longer."
+     * beat, then a slightly stronger one) rather than a single generic buzz - softened
+     * from an earlier, more intense version, but still distinct from blockedMove's flat
+     * single tap.
      */
     fun win() {
         val v = vibrator ?: return
@@ -75,9 +68,9 @@ class HapticFeedback(context: Context) {
         try {
             // timings: [wait, on, off, on, off, on] in ms. amplitudes: 0 during the
             // "off" gaps, ramping up on each successive pulse.
-            val timings = longArrayOf(0, 40, 70, 50, 80, 90)
+            val timings = longArrayOf(0, 35, 70, 40, 80, 60)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val amplitudes = intArrayOf(0, 110, 0, 170, 0, 255)
+                val amplitudes = intArrayOf(0, 70, 0, 110, 0, 150)
                 v.vibrate(VibrationEffect.createWaveform(timings, amplitudes, -1))
             } else {
                 @Suppress("DEPRECATION")

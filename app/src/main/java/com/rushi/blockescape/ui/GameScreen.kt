@@ -28,7 +28,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -58,38 +57,19 @@ fun GameScreen(
     val moveCount = viewModel.moveCount.value
     val isWon = viewModel.isWon.value
     val hint = viewModel.hint.value
-    val hintRequestCount = viewModel.hintRequestCount.value
 
     val context = LocalContext.current
     val haptics = remember(context) { HapticFeedback(context) }
 
-    // Move-committed haptic: fires only when moveCount goes UP (an actual committed
-    // move), never on this composable's initial composition and never on the drop back
-    // to a lower count from undo() or the reset-to-zero from restart() - those get their
-    // own explicit button-tap haptic instead (see the Undo/Restart onClick handlers
-    // below), so they don't also double-fire this one.
-    var previousMoveCount by remember { mutableIntStateOf(moveCount) }
-    LaunchedEffect(moveCount) {
-        if (moveCount > previousMoveCount) haptics.moveCommitted()
-        previousMoveCount = moveCount
-    }
-
     // Win haptic: fires only on the false -> true transition of isWon, so it never
-    // repeats while the win overlay stays up across recompositions.
+    // repeats while the win overlay stays up across recompositions. This is the only
+    // "positive" haptic left in the game - move-tap, button-tap, and hint-tap were all
+    // removed after Rushi found them too frequent/noisy in practice; blockedMove (in
+    // GameBoardScreen.kt) is the only other one still wired in.
     var previousIsWon by remember { mutableStateOf(isWon) }
     LaunchedEffect(isWon) {
         if (isWon && !previousIsWon) haptics.win()
         previousIsWon = isWon
-    }
-
-    // Hint haptic: fires once per requestHint() call that produces a real hint. Keyed on
-    // hintRequestCount rather than hint itself - Solver.Move is a data class, so
-    // repeat-tapping Hint without moving (same board -> same solver answer) would set
-    // `hint` to an equal value, which Compose's default structural-equality state treats
-    // as a no-op write and never notifies a LaunchedEffect(hint) about. hintRequestCount
-    // increments unconditionally on every call, so it always re-fires this effect.
-    LaunchedEffect(hintRequestCount) {
-        if (hintRequestCount > 0 && hint != null) haptics.hintShown()
     }
 
     // Delays the win overlay's own appearance by a short beat after isWon flips true, so
@@ -157,16 +137,16 @@ fun GameScreen(
                     // Tied visually to the on-board highlight: same warm amber, so the
                     // button reads as "the source" of the glow that appears on the board.
                     Button(
-                        onClick = { haptics.buttonTap(); viewModel.requestHint() },
+                        onClick = { viewModel.requestHint() },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = BoardColors.hintGlow,
                             contentColor = Color(0xFF3B2A1B)
                         )
                     ) { Text("Hint") }
                     Spacer(modifier = Modifier.padding(4.dp))
-                    Button(onClick = { haptics.buttonTap(); viewModel.undo() }) { Text("Undo") }
+                    Button(onClick = { viewModel.undo() }) { Text("Undo") }
                     Spacer(modifier = Modifier.padding(4.dp))
-                    Button(onClick = { haptics.buttonTap(); viewModel.restart() }) { Text("Restart") }
+                    Button(onClick = { viewModel.restart() }) { Text("Restart") }
                 }
             }
 
@@ -261,11 +241,11 @@ fun GameScreen(
                     Text("Solved in $moveCount moves!", style = MaterialTheme.typography.headlineMedium, color = Color.White)
                     Spacer(modifier = Modifier.padding(8.dp))
                     if (hasNextLevel) {
-                        Button(onClick = { haptics.buttonTap(); onNextLevel() }) { Text("Next Level") }
+                        Button(onClick = { onNextLevel() }) { Text("Next Level") }
                         Spacer(modifier = Modifier.padding(4.dp))
-                        Button(onClick = { haptics.buttonTap(); viewModel.restart() }) { Text("Play Again") }
+                        Button(onClick = { viewModel.restart() }) { Text("Play Again") }
                     } else {
-                        Button(onClick = { haptics.buttonTap(); viewModel.restart() }) { Text("Play Again") }
+                        Button(onClick = { viewModel.restart() }) { Text("Play Again") }
                     }
                 }
             }
