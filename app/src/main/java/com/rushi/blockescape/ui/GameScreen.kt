@@ -147,9 +147,24 @@ fun GameScreen(
             // identically styled, just on its own line.
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Moves: $moveCount", style = MaterialTheme.typography.titleMedium)
+                Column {
+                    Text("Moves: $moveCount", style = MaterialTheme.typography.titleMedium)
+                    // Shown live during play, not just after clearing the level - Rushi's
+                    // call: knowing the target up front is what lets a player plan their
+                    // moves around it, rather than only finding out how they did in
+                    // hindsight on the win overlay (which still shows its own comparison
+                    // too, via winOverlayMovesText below).
+                    if (bestMoves != null) {
+                        Text(
+                            "Best: $bestMoves",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
                 Button(onClick = onBackToLevels) { Text("Levels") }
             }
 
