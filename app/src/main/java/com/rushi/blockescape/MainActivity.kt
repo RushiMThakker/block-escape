@@ -12,10 +12,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.android.gms.ads.MobileAds
+import com.google.android.gms.ads.RequestConfiguration
 import com.rushi.blockescape.level.LevelBestMoves
 import com.rushi.blockescape.level.LevelPack
 import com.rushi.blockescape.level.LevelRepository
@@ -25,6 +29,32 @@ import com.rushi.blockescape.ui.GameViewModel
 import com.rushi.blockescape.ui.LevelSelectScreen
 import com.rushi.blockescape.ui.theme.BlockEscapeTheme
 
+/**
+ * AdMob test-device IDs for developer/owner phones used for on-device ad verification.
+ * Registering a device here forces the Mobile Ads SDK to serve clearly-labeled "Test Ad"
+ * creatives on it instead of real ad inventory, so tapping an ad during our own testing
+ * can never register as a real (accidental self-click) impression/click against the live
+ * AdMob account — a real risk once real ad unit/app IDs are wired in (see AdConfig.kt).
+ *
+ * This does NOT affect the 12 external closed-testing users: their devices are not in
+ * this list, so they see real ads as intended (normal, expected, low-volume usage).
+ *
+ * To add a new developer test device (e.g. testing on a different phone later): run this
+ * app once on that device with the real AdMob IDs in place, open a screen with a banner,
+ * then read logcat for a line from `RequestConfiguration.Builder`/`setTestDeviceIds`
+ * reporting that device's specific hashed ID, and add it to this list.
+ *
+ * Standard Android emulators do NOT need an entry here - per Google's AdMob docs
+ * ("Android emulators are automatically configured as test devices"), only real
+ * physical devices need to be registered explicitly.
+ */
+private val ADMOB_TEST_DEVICE_IDS: List<String> = listOf(
+    // Rushi's Galaxy M32 (SM_M325F, adb id RZ8R60N0D0T). Captured from logcat's own
+    // "Use RequestConfiguration.Builder().setTestDeviceIds(...)" line, logged by the
+    // Mobile Ads SDK (tag "Ads") the first time this device requested a real ad.
+    "A12B9D116A22E6B48A5B1435306183EC"
+)
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         // Must be called before super.onCreate() — this is the documented
@@ -32,6 +62,15 @@ class MainActivity : ComponentActivity() {
         // activity's theme before the window is created).
         installSplashScreen()
         super.onCreate(savedInstanceState)
+        // Register developer test devices BEFORE the first ad request so banners on
+        // those devices always render as "Test Ad" rather than real inventory — see
+        // ADMOB_TEST_DEVICE_IDS doc above for why this matters now that real AdMob IDs
+        // are live. Safe to apply even while the list is empty/incomplete.
+        MobileAds.setRequestConfiguration(
+            RequestConfiguration.Builder()
+                .setTestDeviceIds(ADMOB_TEST_DEVICE_IDS)
+                .build()
+        )
         // Fire-and-forget: doesn't need to block startup, just needs to happen before
         // BannerAdView requests its first ad.
         MobileAds.initialize(this) { }
@@ -58,6 +97,21 @@ private sealed class Screen {
 }
 
 /**
+ * Makes `screen` survive an Activity recreation (rotation), not just recomposition.
+ * Plain `remember` is discarded when the Activity is destroyed/recreated (this app has
+ * no android:configChanges, so rotation does exactly that) - only rememberSaveable
+ * round-trips through the Activity's saved-instance-state Bundle. Without this, rotating
+ * mid-level would reset `screen` back to its initial LevelSelect value and bounce the
+ * player out of the level entirely, regardless of any ViewModel-level fix. Screen itself
+ * isn't Parcelable (it's a small local sealed class, deliberately - see the doc above),
+ * so it's saved as a plain Int: -1 for LevelSelect, else the level index for Game.
+ */
+private val ScreenSaver = Saver<Screen, Int>(
+    save = { screen -> if (screen is Screen.Game) screen.levelIndex else -1 },
+    restore = { saved -> if (saved < 0) Screen.LevelSelect else Screen.Game(saved) }
+)
+
+/**
  * Owns progress persistence + screen state above both screens. The app now opens to
  * level-select rather than straight into gameplay (a deliberate UX change, per the owner)
  * and only enters gameplay once a level is tapped.
@@ -80,8 +134,28 @@ private fun BlockEscapeApp(context: Context) {
     val progressStore = remember { ProgressStore(context) }
 
     // The owner's decision: open here, not straight into gameplay like before.
-    var screen by remember { mutableStateOf<Screen>(Screen.LevelSelect) }
+    // rememberSaveable (not remember) so this - and therefore which screen is showing -
+    // survives an Activity recreation from rotation; see ScreenSaver's doc above.
+    var screen by rememberSaveable(stateSaver = ScreenSaver) { mutableStateOf<Screen>(Screen.LevelSelect) }
     var clearedCount by remember { mutableIntStateOf(progressStore.clearedCount()) }
+
+    // Monotonically increases every time gameplay is freshly entered for a level (from
+    // level-select, or via "next level"), and is folded into that Game screen's
+    // viewModel() key below. This is what makes "replay a level after navigating away
+    // and back" get a genuinely fresh GameViewModel: the Activity's ViewModelStore (and
+    // therefore any GameViewModel already created for a given key) survives ordinary
+    // in-app navigation, not just rotation, so keying purely by levelIndex would hand a
+    // replay the SAME stale instance from the previous playthrough. rememberSaveable so
+    // the counter (and hence the key of the currently-active level) stays IDENTICAL
+    // across a rotation of the same still-active level - which is exactly what lets
+    // viewModel() find and reuse that same instance on rotation instead of creating a
+    // new one. Only incremented from event handlers (enterLevel below), never during
+    // composition, so recomposition/rotation alone never bumps it.
+    var levelSessionCounter by rememberSaveable { mutableIntStateOf(0) }
+    fun enterLevel(idx: Int) {
+        levelSessionCounter++
+        screen = Screen.Game(idx)
+    }
 
     LaunchedEffect(screen) {
         if (screen is Screen.LevelSelect) {
@@ -110,7 +184,7 @@ private fun BlockEscapeApp(context: Context) {
                 totalLevels = levelFiles.size,
                 clearedCount = clearedCount,
                 bestMoveCounts = bestMoveCounts ?: emptyList(),
-                onLevelSelected = { idx -> screen = Screen.Game(idx) }
+                onLevelSelected = { idx -> enterLevel(idx) }
             )
         }
 
@@ -121,7 +195,15 @@ private fun BlockEscapeApp(context: Context) {
             BackHandler { screen = Screen.LevelSelect }
 
             val levelIndex = current.levelIndex
-            val viewModel = remember(levelIndex) {
+            // viewModel() (not remember) so this GameViewModel - move count, undo
+            // history, current board - is backed by the Activity's ViewModelStore and
+            // survives rotation instead of being discarded and rebuilt from scratch.
+            // The key combines levelIndex (so switching levels via onNextLevel always
+            // gets a distinct instance) with levelSessionCounter (so replaying the SAME
+            // level after a level-select round-trip also gets a distinct, fresh
+            // instance instead of the ViewModelStore handing back the old one) - see
+            // levelSessionCounter's doc above for why both are needed.
+            val viewModel = viewModel(key = "level_${levelIndex}_$levelSessionCounter") {
                 val board = LevelRepository(context).loadLevel(levelFiles[levelIndex])
                 GameViewModel(board)
             }
@@ -132,7 +214,7 @@ private fun BlockEscapeApp(context: Context) {
                 totalLevels = levelFiles.size,
                 hasNextLevel = levelIndex < levelFiles.lastIndex,
                 onNextLevel = {
-                    if (levelIndex < levelFiles.lastIndex) screen = Screen.Game(levelIndex + 1)
+                    if (levelIndex < levelFiles.lastIndex) enterLevel(levelIndex + 1)
                 },
                 onBackToLevels = { screen = Screen.LevelSelect },
                 onLevelCleared = {
