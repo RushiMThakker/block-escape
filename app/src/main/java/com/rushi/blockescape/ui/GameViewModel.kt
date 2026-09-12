@@ -28,6 +28,16 @@ class GameViewModel(private val initialBoard: Board) : ViewModel() {
     private val _hint = mutableStateOf<Solver.Move?>(null)
     val hint: State<Solver.Move?> = _hint
 
+    // Increments on every requestHint() call, regardless of whether the resulting Move is
+    // equal to the previous one. `hint` alone isn't enough for UI code that needs to react
+    // to "a hint was just (re)requested" (e.g. playing a haptic tick) - Solver.Move is a
+    // data class and Compose's default structural-equality state skips notifying observers
+    // when a write doesn't actually change the value, so repeat-tapping Hint without moving
+    // (same board -> same solver answer) would otherwise go unnoticed by anything keyed on
+    // `hint` itself.
+    private val _hintRequestCount = mutableStateOf(0)
+    val hintRequestCount: State<Int> = _hintRequestCount
+
     fun attemptMove(vehicleId: String, delta: Int) {
         if (delta == 0) return
         val range = _board.value.legalMoves(vehicleId)
@@ -66,5 +76,6 @@ class GameViewModel(private val initialBoard: Board) : ViewModel() {
      */
     fun requestHint() {
         _hint.value = Solver.hintMove(_board.value)
+        _hintRequestCount.value += 1
     }
 }

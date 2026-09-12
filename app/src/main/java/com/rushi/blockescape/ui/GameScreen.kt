@@ -58,6 +58,7 @@ fun GameScreen(
     val moveCount = viewModel.moveCount.value
     val isWon = viewModel.isWon.value
     val hint = viewModel.hint.value
+    val hintRequestCount = viewModel.hintRequestCount.value
 
     val context = LocalContext.current
     val haptics = remember(context) { HapticFeedback(context) }
@@ -81,11 +82,14 @@ fun GameScreen(
         previousIsWon = isWon
     }
 
-    // Hint haptic: fires whenever a (new) hint becomes available. GameViewModel always
-    // clears hint to null before recomputing it (see requestHint/attemptMove/undo/
-    // restart), so in practice this corresponds 1:1 with the player tapping "Hint."
-    LaunchedEffect(hint) {
-        if (hint != null) haptics.hintShown()
+    // Hint haptic: fires once per requestHint() call that produces a real hint. Keyed on
+    // hintRequestCount rather than hint itself - Solver.Move is a data class, so
+    // repeat-tapping Hint without moving (same board -> same solver answer) would set
+    // `hint` to an equal value, which Compose's default structural-equality state treats
+    // as a no-op write and never notifies a LaunchedEffect(hint) about. hintRequestCount
+    // increments unconditionally on every call, so it always re-fires this effect.
+    LaunchedEffect(hintRequestCount) {
+        if (hintRequestCount > 0 && hint != null) haptics.hintShown()
     }
 
     // Delays the win overlay's own appearance by a short beat after isWon flips true, so

@@ -151,4 +151,23 @@ class GameViewModelTest {
         vm.requestHint()
         assertNull(vm.hint.value)
     }
+
+    @Test
+    fun `hintRequestCount increments on every requestHint call, even when the resulting move is unchanged`() {
+        // Regression test: Solver.Move is a data class, so repeat-tapping Hint on an
+        // unchanged board produces an equal (structurally-identical) hint each time.
+        // hintRequestCount must still increment every call so UI code that needs to react
+        // to "a hint was (re)requested" - not just "the hint value changed" - has
+        // something to key off (see GameScreen.kt's hint haptic).
+        val vm = GameViewModel(startBoard())
+        assertEquals(0, vm.hintRequestCount.value)
+
+        vm.requestHint()
+        assertEquals(1, vm.hintRequestCount.value)
+        val firstHint = vm.hint.value
+
+        vm.requestHint()
+        assertEquals(2, vm.hintRequestCount.value)
+        assertEquals(firstHint, vm.hint.value) // same board -> same solver answer
+    }
 }
