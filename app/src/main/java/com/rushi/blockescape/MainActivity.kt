@@ -3,11 +3,14 @@ package com.rushi.blockescape
 import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -15,8 +18,10 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.google.android.gms.ads.MobileAds
 import com.rushi.blockescape.level.LevelPack
 import com.rushi.blockescape.level.LevelRepository
+import com.rushi.blockescape.progress.ProgressStore
 import com.rushi.blockescape.ui.GameScreen
 import com.rushi.blockescape.ui.GameViewModel
+import com.rushi.blockescape.ui.LevelSelectScreen
 import com.rushi.blockescape.ui.theme.BlockEscapeTheme
 
 class MainActivity : ComponentActivity() {
@@ -40,32 +45,79 @@ class MainActivity : ComponentActivity() {
 }
 
 /**
- * Minimal level-progression wiring for this vertical slice: an ordered list of level
- * files (LevelPack), play them in order, advance on win. No level-select UI, no
- * persistence across app restarts — deliberately out of scope for now (YAGNI).
+ * Two-screen local navigation: level-select (the app's landing screen) and gameplay. No
+ * Jetpack Navigation library — this project deliberately avoids over-engineering (see
+ * LevelPack.kt's plain ordered-list approach, GameViewModel's direct-construction-not-
+ * ViewModelProvider approach); a small local sealed class is enough here since the only
+ * "back stack" that exists is "Game always returns to LevelSelect."
+ */
+private sealed class Screen {
+    data object LevelSelect : Screen()
+    data class Game(val levelIndex: Int) : Screen()
+}
+
+/**
+ * Owns progress persistence + screen state above both screens. The app now opens to
+ * level-select rather than straight into gameplay (a deliberate UX change, per the owner)
+ * and only enters gameplay once a level is tapped.
  *
- * GameViewModel is constructed directly rather than via ViewModelProvider (an accepted
- * simplification already in place for this vertical slice — see GameViewModel.kt), so
- * advancing levels re-keys a `remember(levelIndex)` block to build a fresh Board and
- * GameViewModel whenever the index changes.
+ * `highestUnlockedIndex` is the single source of truth for lock/cleared state, hoisted
+ * here (not inside either screen) so it survives navigating between them without extra
+ * plumbing. It's updated immediately in-memory when a level is cleared (see
+ * onLevelCleared below) and additionally re-read from ProgressStore every time `screen`
+ * settles back on LevelSelect, so the level-select grid is always showing the freshest
+ * persisted value rather than trusting only the in-memory copy.
  */
 @Composable
 private fun BlockEscapeApp(context: Context) {
     val levelFiles = LevelPack.ORDERED_LEVEL_FILES
-    var levelIndex by remember { mutableIntStateOf(0) }
+    val progressStore = remember { ProgressStore(context) }
 
-    val viewModel = remember(levelIndex) {
-        val board = LevelRepository(context).loadLevel(levelFiles[levelIndex])
-        GameViewModel(board)
+    // The owner's decision: open here, not straight into gameplay like before.
+    var screen by remember { mutableStateOf<Screen>(Screen.LevelSelect) }
+    var highestUnlockedIndex by remember { mutableIntStateOf(progressStore.highestUnlockedIndex()) }
+
+    LaunchedEffect(screen) {
+        if (screen is Screen.LevelSelect) {
+            highestUnlockedIndex = progressStore.highestUnlockedIndex()
+        }
     }
 
-    GameScreen(
-        viewModel = viewModel,
-        levelNumber = levelIndex + 1,
-        totalLevels = levelFiles.size,
-        hasNextLevel = levelIndex < levelFiles.lastIndex,
-        onNextLevel = {
-            if (levelIndex < levelFiles.lastIndex) levelIndex++
+    when (val current = screen) {
+        is Screen.LevelSelect -> {
+            LevelSelectScreen(
+                totalLevels = levelFiles.size,
+                highestUnlockedIndex = highestUnlockedIndex,
+                onLevelSelected = { idx -> screen = Screen.Game(idx) }
+            )
         }
-    )
+
+        is Screen.Game -> {
+            // Back button/gesture from inside a level returns to level-select instead of
+            // exiting the app. LevelSelect itself gets no BackHandler, so back there
+            // falls through to the platform default.
+            BackHandler { screen = Screen.LevelSelect }
+
+            val levelIndex = current.levelIndex
+            val viewModel = remember(levelIndex) {
+                val board = LevelRepository(context).loadLevel(levelFiles[levelIndex])
+                GameViewModel(board)
+            }
+
+            GameScreen(
+                viewModel = viewModel,
+                levelNumber = levelIndex + 1,
+                totalLevels = levelFiles.size,
+                hasNextLevel = levelIndex < levelFiles.lastIndex,
+                onNextLevel = {
+                    if (levelIndex < levelFiles.lastIndex) screen = Screen.Game(levelIndex + 1)
+                },
+                onBackToLevels = { screen = Screen.LevelSelect },
+                onLevelCleared = {
+                    progressStore.markLevelCleared(levelIndex, levelFiles.size)
+                    highestUnlockedIndex = progressStore.highestUnlockedIndex()
+                }
+            )
+        }
+    }
 }

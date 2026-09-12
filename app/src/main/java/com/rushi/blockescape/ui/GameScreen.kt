@@ -51,7 +51,9 @@ fun GameScreen(
     levelNumber: Int = 1,
     totalLevels: Int = 1,
     hasNextLevel: Boolean = false,
-    onNextLevel: () -> Unit = {}
+    onNextLevel: () -> Unit = {},
+    onBackToLevels: () -> Unit = {},
+    onLevelCleared: () -> Unit = {}
 ) {
     val board = viewModel.board.value
     val moveCount = viewModel.moveCount.value
@@ -68,7 +70,10 @@ fun GameScreen(
     // GameBoardScreen.kt) is the only other one still wired in.
     var previousIsWon by remember { mutableStateOf(isWon) }
     LaunchedEffect(isWon) {
-        if (isWon && !previousIsWon) haptics.win()
+        if (isWon && !previousIsWon) {
+            haptics.win()
+            onLevelCleared()
+        }
         previousIsWon = isWon
     }
 
@@ -128,26 +133,37 @@ fun GameScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
+            // Nav-back-to-level-select gets its own top line paired with the move
+            // counter, rather than crowding into the Hint/Undo/Restart action row below -
+            // that row already fills the available width at three buttons on a typical
+            // phone, and a fourth button there ran past the screen edge (found during
+            // on-device testing). This keeps "Levels" close to the other HUD controls and
+            // identically styled, just on its own line.
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text("Moves: $moveCount", style = MaterialTheme.typography.titleMedium)
-                Row {
-                    // Tied visually to the on-board highlight: same warm amber, so the
-                    // button reads as "the source" of the glow that appears on the board.
-                    Button(
-                        onClick = { viewModel.requestHint() },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = BoardColors.hintGlow,
-                            contentColor = Color(0xFF3B2A1B)
-                        )
-                    ) { Text("Hint") }
-                    Spacer(modifier = Modifier.padding(4.dp))
-                    Button(onClick = { viewModel.undo() }) { Text("Undo") }
-                    Spacer(modifier = Modifier.padding(4.dp))
-                    Button(onClick = { viewModel.restart() }) { Text("Restart") }
-                }
+                Button(onClick = onBackToLevels) { Text("Levels") }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Tied visually to the on-board highlight: same warm amber, so the
+                // button reads as "the source" of the glow that appears on the board.
+                Button(
+                    onClick = { viewModel.requestHint() },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = BoardColors.hintGlow,
+                        contentColor = Color(0xFF3B2A1B)
+                    )
+                ) { Text("Hint") }
+                Button(onClick = { viewModel.undo() }) { Text("Undo") }
+                Button(onClick = { viewModel.restart() }) { Text("Restart") }
             }
 
             // The board is pinned to a 1:1 aspect ratio (GameBoardScreen.kt) so on a tall
