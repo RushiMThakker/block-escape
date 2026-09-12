@@ -35,6 +35,7 @@
         <activity
             android:name=".MainActivity"
             android:theme="@style/Theme.BlockEscape.Starting"
+            android:screenOrientation="portrait"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
