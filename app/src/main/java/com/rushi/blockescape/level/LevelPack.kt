@@ -1,9 +1,11 @@
 package com.rushi.blockescape.level
 
 /**
- * The ordered set of levels shipped with the app. Minimal on purpose for this vertical
- * slice: just "play them in order, advance on win" — no level-select UI, no persistence
- * of progress across app restarts.
+ * The ordered set of levels shipped with the app. Progression is strictly linear (no
+ * branching) — clearing level i unlocks level i+1 — which is what lets ProgressStore.kt
+ * track unlock/cleared state with a single "levels cleared" count instead of per-level
+ * state. See LevelSelectScreen.kt for the level-select grid and MainActivity.kt for how
+ * this list drives it.
  */
 object LevelPack {
     val ORDERED_LEVEL_FILES: List<String> = listOf(

@@ -32,16 +32,21 @@ import androidx.compose.ui.unit.sp
 
 /**
  * Landing screen (see MainActivity.kt): a grid of every level in the pack, each tile in
- * one of three states derived entirely from [highestUnlockedIndex] - this project's
- * level progression is strictly linear, so that single int is enough to tell locked
- * apart from unlocked apart from cleared for every index, no separate per-level state
- * needed:
+ * one of three states derived entirely from [clearedCount] (how many levels have been
+ * cleared) - this project's level progression is strictly linear, so that single int is
+ * enough to tell locked apart from unlocked apart from cleared for every index, no
+ * separate per-level state needed:
  *
- *  - locked (index > highestUnlockedIndex): dimmed, a lock glyph, not clickable.
- *  - unlocked, not yet cleared (index == highestUnlockedIndex): normal warm wood tone,
- *    clickable, meant to read as "play me next."
- *  - cleared (index < highestUnlockedIndex): a distinct moss-green accent + checkmark,
- *    still clickable (replaying a cleared level is allowed).
+ *  - locked (index > clearedCount): dimmed, a lock glyph, not clickable.
+ *  - unlocked, not yet cleared (index == clearedCount): normal warm wood tone, clickable,
+ *    meant to read as "play me next."
+ *  - cleared (index < clearedCount): a distinct moss-green accent + checkmark, still
+ *    clickable (replaying a cleared level is allowed).
+ *
+ * `clearedCount` rather than a "highest unlocked index": see ProgressStore.kt's
+ * nextClearedCount doc for why - in short, an index-based model can't distinguish
+ * "unlocked the last level" from "cleared the last level," so the final level could never
+ * show as cleared. A count has no such collision.
  *
  * Shares GameScreen's "BLOCK ESCAPE" wordmark and warm radial background wash so the two
  * screens read as one app rather than two stapled-together UIs.
@@ -49,7 +54,7 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun LevelSelectScreen(
     totalLevels: Int,
-    highestUnlockedIndex: Int,
+    clearedCount: Int,
     onLevelSelected: (Int) -> Unit
 ) {
     val colorScheme = MaterialTheme.colorScheme
@@ -98,7 +103,7 @@ fun LevelSelectScreen(
                 items(totalLevels) { index ->
                     LevelTile(
                         levelNumber = index + 1,
-                        state = levelTileState(index, highestUnlockedIndex),
+                        state = levelTileState(index, clearedCount),
                         onClick = { onLevelSelected(index) }
                     )
                 }
@@ -109,9 +114,9 @@ fun LevelSelectScreen(
 
 private enum class LevelTileState { LOCKED, UNLOCKED, CLEARED }
 
-private fun levelTileState(index: Int, highestUnlockedIndex: Int): LevelTileState = when {
-    index < highestUnlockedIndex -> LevelTileState.CLEARED
-    index <= highestUnlockedIndex -> LevelTileState.UNLOCKED
+private fun levelTileState(index: Int, clearedCount: Int): LevelTileState = when {
+    index < clearedCount -> LevelTileState.CLEARED
+    index <= clearedCount -> LevelTileState.UNLOCKED
     else -> LevelTileState.LOCKED
 }
 
@@ -130,26 +135,27 @@ private fun LevelTile(
     val clearedColor = Color(0xFF6E8B3D)
     val clearedBorder = Color(0xFF4F6B26)
 
-    val (fill, border, contentColor, clickable) = when (state) {
-        LevelTileState.LOCKED -> Quad(
-            colorScheme.surfaceVariant.copy(alpha = 0.55f),
-            Color.Transparent,
-            colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
-            false
+    val style = when (state) {
+        LevelTileState.LOCKED -> TileStyle(
+            fill = colorScheme.surfaceVariant.copy(alpha = 0.55f),
+            border = Color.Transparent,
+            contentColor = colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
+            clickable = false
         )
-        LevelTileState.UNLOCKED -> Quad(
-            BoardColors.woodBase,
-            BoardColors.woodLight,
-            Color(0xFFFFF8EF),
-            true
+        LevelTileState.UNLOCKED -> TileStyle(
+            fill = BoardColors.woodBase,
+            border = BoardColors.woodLight,
+            contentColor = Color(0xFFFFF8EF),
+            clickable = true
         )
-        LevelTileState.CLEARED -> Quad(
-            clearedColor,
-            clearedBorder,
-            Color(0xFFFFF8EF),
-            true
+        LevelTileState.CLEARED -> TileStyle(
+            fill = clearedColor,
+            border = clearedBorder,
+            contentColor = Color(0xFFFFF8EF),
+            clickable = true
         )
     }
+    val (fill, border, contentColor, clickable) = style
 
     Box(
         modifier = Modifier
@@ -190,4 +196,4 @@ private fun LevelTile(
     }
 }
 
-private data class Quad<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
+private data class TileStyle(val fill: Color, val border: Color, val contentColor: Color, val clickable: Boolean)

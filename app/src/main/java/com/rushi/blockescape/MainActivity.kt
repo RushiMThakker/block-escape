@@ -61,12 +61,17 @@ private sealed class Screen {
  * level-select rather than straight into gameplay (a deliberate UX change, per the owner)
  * and only enters gameplay once a level is tapped.
  *
- * `highestUnlockedIndex` is the single source of truth for lock/cleared state, hoisted
- * here (not inside either screen) so it survives navigating between them without extra
- * plumbing. It's updated immediately in-memory when a level is cleared (see
- * onLevelCleared below) and additionally re-read from ProgressStore every time `screen`
- * settles back on LevelSelect, so the level-select grid is always showing the freshest
- * persisted value rather than trusting only the in-memory copy.
+ * `clearedCount` (how many levels have been cleared) is the single source of truth for
+ * lock/cleared state, hoisted here (not inside either screen) so it survives navigating
+ * between them without extra plumbing. It's updated immediately in-memory when a level is
+ * cleared (see onLevelCleared below) and additionally re-read from ProgressStore every
+ * time `screen` settles back on LevelSelect, so the level-select grid is always showing
+ * the freshest persisted value rather than trusting only the in-memory copy.
+ *
+ * Deliberately a COUNT, not a "highest unlocked index": an earlier version used an index
+ * capped at the last valid level, which made clearing the final level in the pack
+ * indistinguishable from merely having unlocked it — the last level could never show as
+ * "cleared". See ProgressStore.kt's nextClearedCount doc for the full reasoning.
  */
 @Composable
 private fun BlockEscapeApp(context: Context) {
@@ -75,11 +80,11 @@ private fun BlockEscapeApp(context: Context) {
 
     // The owner's decision: open here, not straight into gameplay like before.
     var screen by remember { mutableStateOf<Screen>(Screen.LevelSelect) }
-    var highestUnlockedIndex by remember { mutableIntStateOf(progressStore.highestUnlockedIndex()) }
+    var clearedCount by remember { mutableIntStateOf(progressStore.clearedCount()) }
 
     LaunchedEffect(screen) {
         if (screen is Screen.LevelSelect) {
-            highestUnlockedIndex = progressStore.highestUnlockedIndex()
+            clearedCount = progressStore.clearedCount()
         }
     }
 
@@ -87,7 +92,7 @@ private fun BlockEscapeApp(context: Context) {
         is Screen.LevelSelect -> {
             LevelSelectScreen(
                 totalLevels = levelFiles.size,
-                highestUnlockedIndex = highestUnlockedIndex,
+                clearedCount = clearedCount,
                 onLevelSelected = { idx -> screen = Screen.Game(idx) }
             )
         }
@@ -115,7 +120,7 @@ private fun BlockEscapeApp(context: Context) {
                 onBackToLevels = { screen = Screen.LevelSelect },
                 onLevelCleared = {
                     progressStore.markLevelCleared(levelIndex, levelFiles.size)
-                    highestUnlockedIndex = progressStore.highestUnlockedIndex()
+                    clearedCount = progressStore.clearedCount()
                 }
             )
         }
