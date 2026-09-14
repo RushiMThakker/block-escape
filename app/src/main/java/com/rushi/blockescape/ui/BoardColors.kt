@@ -14,13 +14,16 @@ object BoardColors {
     // reached the exit" (it's a touch more saturated/orange than exitGlow's soft yellow).
     val hintGlow = Color(0xFFFFB300)
 
-    val vehiclePrimary = Color(0xFFE53935)
+    // Softened (Material "300"-tier) versions of the original vehicle colors - less
+    // saturated/bright so the board reads calmer, while staying distinct enough from
+    // each other and from woodBase/woodDark to stay readable at a glance.
+    val vehiclePrimary = Color(0xFFE57373)
     val vehiclePalette = listOf(
-        Color(0xFF1E88E5),
-        Color(0xFF43A047),
-        Color(0xFFFB8C00),
-        Color(0xFF8E24AA),
-        Color(0xFF00897B),
-        Color(0xFFFDD835)
+        Color(0xFF64B5F6),
+        Color(0xFF81C784),
+        Color(0xFFFFB74D),
+        Color(0xFFBA68C8),
+        Color(0xFF4DB6AC),
+        Color(0xFFFFF176)
     )
 }
