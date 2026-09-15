@@ -21,12 +21,12 @@ val hasReleaseSigning = keystorePropertiesFile.exists().also { exists ->
 
 android {
     namespace = "com.rushi.blockescape"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.rushi.blockescape"
         minSdk = 24
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 1
         versionName = "0.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
