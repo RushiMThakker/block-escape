@@ -11,9 +11,12 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import android.util.Log
+import com.google.android.gms.ads.AdListener
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.AdSize
 import com.google.android.gms.ads.AdView
+import com.google.android.gms.ads.LoadAdError
 import kotlin.math.roundToInt
 
 /**
@@ -52,6 +55,18 @@ fun BannerAdView(modifier: Modifier = Modifier) {
             AdView(context).apply {
                 setAdSize(adSize)
                 adUnitId = AdConfig.BANNER_AD_UNIT_ID
+                // Logged rather than silently swallowed - an AdView collapses to nothing on
+                // failure with no visible sign why, and this was previously the only way to
+                // tell "no fill" apart from an actual misconfiguration.
+                adListener = object : AdListener() {
+                    override fun onAdLoaded() {
+                        Log.d("BlockEscapeAds", "Banner loaded")
+                    }
+
+                    override fun onAdFailedToLoad(error: LoadAdError) {
+                        Log.w("BlockEscapeAds", "Banner failed to load: ${error.code} ${error.message}")
+                    }
+                }
             }
         }
 
