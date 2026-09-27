@@ -26,6 +26,7 @@ import com.rushi.blockescape.level.LevelRepository
 import com.rushi.blockescape.progress.ProgressStore
 import com.rushi.blockescape.ui.GameScreen
 import com.rushi.blockescape.ui.GameViewModel
+import com.rushi.blockescape.ui.HowToPlayDialog
 import com.rushi.blockescape.ui.LevelSelectScreen
 import com.rushi.blockescape.ui.theme.BlockEscapeTheme
 
@@ -178,14 +179,27 @@ private fun BlockEscapeApp(context: Context) {
         bestMoveCounts = LevelBestMoves.getOrCompute(context)
     }
 
+    var showHowToPlay by rememberSaveable { mutableStateOf(!progressStore.hasSeenHowToPlay()) }
+
     when (val current = screen) {
         is Screen.LevelSelect -> {
             LevelSelectScreen(
                 totalLevels = levelFiles.size,
                 clearedCount = clearedCount,
                 bestMoveCounts = bestMoveCounts ?: emptyList(),
-                onLevelSelected = { idx -> enterLevel(idx) }
+                onLevelSelected = { idx -> enterLevel(idx) },
+                onHowToPlay = { showHowToPlay = true },
+                onRate = { rateApp(context) },
+                onShare = { shareApp(context) }
             )
+            if (showHowToPlay) {
+                HowToPlayDialog(
+                    onDismiss = {
+                        showHowToPlay = false
+                        progressStore.markHowToPlaySeen()
+                    }
+                )
+            }
         }
 
         is Screen.Game -> {

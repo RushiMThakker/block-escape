@@ -74,8 +74,16 @@ class ProgressStore(context: Context) {
         }
     }
 
+    /** Whether the one-time first-launch "How to play" overlay has already been shown. */
+    fun hasSeenHowToPlay(): Boolean = prefs.getBoolean(KEY_SEEN_HOW_TO_PLAY, false)
+
+    fun markHowToPlaySeen() {
+        prefs.edit().putBoolean(KEY_SEEN_HOW_TO_PLAY, true).apply()
+    }
+
     companion object {
         private const val PREFS_NAME = "block_escape_progress"
         private const val KEY_CLEARED_COUNT = "cleared_count"
+        private const val KEY_SEEN_HOW_TO_PLAY = "seen_how_to_play"
     }
 }

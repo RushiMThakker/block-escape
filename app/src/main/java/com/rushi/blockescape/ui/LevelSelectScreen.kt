@@ -6,6 +6,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,6 +18,8 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -56,7 +60,10 @@ fun LevelSelectScreen(
     totalLevels: Int,
     clearedCount: Int,
     bestMoveCounts: List<Int>,
-    onLevelSelected: (Int) -> Unit
+    onLevelSelected: (Int) -> Unit,
+    onHowToPlay: () -> Unit,
+    onRate: () -> Unit,
+    onShare: () -> Unit
 ) {
     val colorScheme = MaterialTheme.colorScheme
 
@@ -99,6 +106,7 @@ fun LevelSelectScreen(
                 verticalArrangement = Arrangement.spacedBy(14.dp),
                 modifier = Modifier
                     .fillMaxWidth()
+                    .weight(1f)
                     .padding(top = 20.dp)
             ) {
                 items(totalLevels) { index ->
@@ -117,7 +125,34 @@ fun LevelSelectScreen(
                     )
                 }
             }
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp)
+            ) {
+                FooterButton("How to play", onHowToPlay, Modifier.weight(1f))
+                FooterButton("Rate", onRate, Modifier.weight(1f))
+                FooterButton("Share", onShare, Modifier.weight(1f))
+            }
         }
+    }
+}
+
+@Composable
+private fun FooterButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Button(
+        onClick = onClick,
+        shape = RoundedCornerShape(50),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = BoardColors.woodBase,
+            contentColor = Color(0xFFFFF8EF)
+        ),
+        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
+        modifier = modifier
+    ) {
+        Text(label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
     }
 }
 
