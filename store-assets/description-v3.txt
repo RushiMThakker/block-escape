@@ -1,0 +1,30 @@
+SHORT DESCRIPTION (80 chars max):
+Relaxing sliding block puzzle: slide, unblock and escape. Free hints, offline.
+
+FULL DESCRIPTION:
+Take a calm, satisfying break with Block Escape, a classic sliding block puzzle in the spirit of Rush Hour. One red block, one exit, and a board full of other blocks in the way. Slide them aside, clear the path, and escape!
+
+Every level is verified solvable by a built-in solver, so you will never get stuck on an impossible board. Puzzles start gentle and grow into genuine brain teasers that reward planning ahead, so you can unwind in a couple of minutes or settle in for a longer session.
+
+HOW IT WORKS
+- Drag any block along its length: horizontal blocks slide left and right, vertical blocks slide up and down
+- Clear a path for the red block to reach the glowing exit
+- Fewer moves is better. Every level shows the best possible move count, so you always know what to aim for
+
+FEATURES
+- 10 handcrafted unblock puzzles with a smooth difficulty curve
+- Think ahead, find the clever route, and enjoy the moment a jammed board finally opens up
+- Best-possible move count shown for every level, so you can chase a perfect score
+- Free, unlimited hints whenever you are stuck
+- Undo and Restart at any time, so you can try ideas without worry
+- Progress saved automatically on your device, with each cleared level unlocking the next
+- Works offline, no account or sign-up needed
+- Clean wooden-board look, no clutter, no timers, no pressure
+- A quick how-to-play guide on first launch
+
+WHO IT IS FOR
+Fans of sliding puzzles, unblock games, logic puzzles and brain teasers. Perfect for a quick break on the commute or a longer evening session, and easy to pick up whether you are new to the genre or a puzzle veteran.
+
+Block Escape is free to play and supported by banner ads. More levels are planned.
+
+Can you clear every level in the fewest moves possible?
