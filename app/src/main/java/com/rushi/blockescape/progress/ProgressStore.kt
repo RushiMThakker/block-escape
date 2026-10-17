@@ -81,9 +81,17 @@ class ProgressStore(context: Context) {
         prefs.edit().putBoolean(KEY_SEEN_HOW_TO_PLAY, true).apply()
     }
 
+    /** Whether the one-time automatic in-app review prompt has already been requested. */
+    fun hasRequestedReview(): Boolean = prefs.getBoolean(KEY_REQUESTED_REVIEW, false)
+
+    fun markReviewRequested() {
+        prefs.edit().putBoolean(KEY_REQUESTED_REVIEW, true).apply()
+    }
+
     companion object {
         private const val PREFS_NAME = "block_escape_progress"
         private const val KEY_CLEARED_COUNT = "cleared_count"
         private const val KEY_SEEN_HOW_TO_PLAY = "seen_how_to_play"
+        private const val KEY_REQUESTED_REVIEW = "requested_review"
     }
 }

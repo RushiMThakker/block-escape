@@ -1,5 +1,6 @@
 package com.rushi.blockescape
 
+import android.app.Activity
 import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -78,7 +79,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             BlockEscapeTheme {
                 Surface(modifier = Modifier) {
-                    BlockEscapeApp(context = applicationContext)
+                    BlockEscapeApp(context = applicationContext, activity = this@MainActivity)
                 }
             }
         }
@@ -92,6 +93,9 @@ class MainActivity : ComponentActivity() {
  * ViewModelProvider approach); a small local sealed class is enough here since the only
  * "back stack" that exists is "Game always returns to LevelSelect."
  */
+/** 0-based index of the level whose first clear triggers the automatic review prompt (level 3). */
+private const val REVIEW_PROMPT_LEVEL_INDEX = 2
+
 private sealed class Screen {
     data object LevelSelect : Screen()
     data class Game(val levelIndex: Int) : Screen()
@@ -130,7 +134,7 @@ private val ScreenSaver = Saver<Screen, Int>(
  * "cleared". See ProgressStore.kt's nextClearedCount doc for the full reasoning.
  */
 @Composable
-private fun BlockEscapeApp(context: Context) {
+private fun BlockEscapeApp(context: Context, activity: Activity) {
     val levelFiles = LevelPack.ORDERED_LEVEL_FILES
     val progressStore = remember { ProgressStore(context) }
 
@@ -189,7 +193,7 @@ private fun BlockEscapeApp(context: Context) {
                 bestMoveCounts = bestMoveCounts ?: emptyList(),
                 onLevelSelected = { idx -> enterLevel(idx) },
                 onHowToPlay = { showHowToPlay = true },
-                onRate = { rateApp(context) },
+                onRate = { requestInAppReview(activity, fallbackToStore = true) },
                 onShare = { shareApp(context) }
             )
             if (showHowToPlay) {
@@ -234,6 +238,12 @@ private fun BlockEscapeApp(context: Context) {
                 onLevelCleared = {
                     progressStore.markLevelCleared(levelIndex, levelFiles.size)
                     clearedCount = progressStore.clearedCount()
+                    // One-time, automatic rating prompt once the player has cleared level 3 and is
+                    // clearly enjoying the game; the footer "Rate" button remains for everyone else.
+                    if (levelIndex == REVIEW_PROMPT_LEVEL_INDEX && !progressStore.hasRequestedReview()) {
+                        progressStore.markReviewRequested()
+                        requestInAppReview(activity, fallbackToStore = false)
+                    }
                 },
                 bestMoves = bestMoveCounts?.getOrNull(levelIndex)
             )
