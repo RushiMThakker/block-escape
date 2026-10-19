@@ -5,8 +5,29 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import com.rushi.blockescape.domain.Board
 import com.rushi.blockescape.solver.Solver
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
 
-class GameViewModel(private val initialBoard: Board) : ViewModel() {
+class GameViewModel(
+    private val initialBoard: Board,
+    // Where the hint search runs. Default keeps it off the main thread; tests pass an
+    // immediate dispatcher so requestHint() completes synchronously.
+    hintDispatcher: CoroutineDispatcher = Dispatchers.Default
+) : ViewModel() {
+
+    private val hintScope = CoroutineScope(SupervisorJob() + hintDispatcher)
+    private var hintJob: Job? = null
+
+    // True while a hint search is running; the UI shows a short "thinking" state instead of freezing.
+    private val _hintThinking = mutableStateOf(false)
+    val hintThinking: State<Boolean> = _hintThinking
+
 
     private val history = ArrayDeque<Board>()
 
@@ -38,6 +59,18 @@ class GameViewModel(private val initialBoard: Board) : ViewModel() {
     private val _hintRequestCount = mutableStateOf(0)
     val hintRequestCount: State<Int> = _hintRequestCount
 
+    /** Drops any running search and the shown hint: the board they were computed for is gone. */
+    private fun clearHint() {
+        hintJob?.cancel()
+        hintJob = null
+        _hintThinking.value = false
+        _hint.value = null
+    }
+
+    override fun onCleared() {
+        hintScope.cancel()
+    }
+
     fun attemptMove(vehicleId: String, delta: Int) {
         if (delta == 0) return
         val range = _board.value.legalMoves(vehicleId)
@@ -47,7 +80,7 @@ class GameViewModel(private val initialBoard: Board) : ViewModel() {
         _board.value = _board.value.move(vehicleId, delta)
         _moveCount.value += 1
         _isWon.value = _board.value.isSolved
-        _hint.value = null
+        clearHint()
     }
 
     fun undo() {
@@ -55,7 +88,7 @@ class GameViewModel(private val initialBoard: Board) : ViewModel() {
         _board.value = previous
         _moveCount.value -= 1
         _isWon.value = _board.value.isSolved
-        _hint.value = null
+        clearHint()
     }
 
     fun restart() {
@@ -63,7 +96,7 @@ class GameViewModel(private val initialBoard: Board) : ViewModel() {
         _board.value = initialBoard
         _moveCount.value = 0
         _isWon.value = initialBoard.isSolved
-        _hint.value = null
+        clearHint()
     }
 
     /**
@@ -75,7 +108,16 @@ class GameViewModel(private val initialBoard: Board) : ViewModel() {
      * board as it stands right now.
      */
     fun requestHint() {
-        _hint.value = Solver.hintMove(_board.value)
-        _hintRequestCount.value += 1
+        if (_hintThinking.value) return
+        val snapshot = _board.value
+        _hintThinking.value = true
+        hintJob = hintScope.launch {
+            val move = Solver.hintMove(snapshot)
+            // A move, undo or restart while searching cancels this job: never show a stale hint.
+            ensureActive()
+            _hint.value = move
+            _hintThinking.value = false
+            _hintRequestCount.value += 1
+        }
     }
 }

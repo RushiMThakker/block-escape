@@ -30,6 +30,14 @@ object Solver {
 
     fun solve(initial: Board): Result {
         if (initial.isSolved) return Result(true, 0, null)
+        // Bit-packed search with the same traversal order; null means "board outside its limits".
+        PackedSolver.solve(initial)?.let { return it }
+        return solveGeneric(initial)
+    }
+
+    /** Reference implementation: unrestricted board sizes, kept as the fallback and as the test oracle. */
+    internal fun solveGeneric(initial: Board): Result {
+        if (initial.isSolved) return Result(true, 0, null)
 
         val visited = mutableSetOf(stateKey(initial))
         // Seed frontier: every board one move away from `initial`, each tagged with the

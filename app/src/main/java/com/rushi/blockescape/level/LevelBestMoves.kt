@@ -8,10 +8,9 @@ import kotlinx.coroutines.withContext
 
 /**
  * Best-possible (minimum) move count for each of [boards], in order, via the real BFS
- * solver (Solver.kt) - this is deliberately never hardcoded anywhere in app code, so the
- * displayed numbers can never drift out of sync if a level file is edited later.
- * (LevelPackTest.kt separately locks in today's known values as a *test* fixture, which is
- * fine - production code always asks the solver fresh.)
+ * solver (Solver.kt). Shipped levels carry their solver-verified count in the level file
+ * (see [LevelBestMoves]); this function remains the reference computation that the
+ * tests use to verify those recorded numbers.
  *
  * Pure function over already-loaded boards, kept separate from the Context/asset-loading
  * and caching/threading concerns in [LevelBestMoves] below - same pure-logic/Context-
@@ -57,10 +56,14 @@ object LevelBestMoves {
         return withContext(Dispatchers.Default) {
             synchronized(lock) {
                 cache ?: run {
-                    val boards = LevelPack.ORDERED_LEVEL_FILES.map { fileName ->
-                        LevelRepository(context).loadLevel(fileName)
-                    }
-                    bestMoveCounts(boards).also { cache = it }
+                    val repository = LevelRepository(context)
+                    LevelPack.ORDERED_LEVEL_FILES.map { fileName ->
+                        val dto = repository.loadDto(fileName)
+                        // Recorded by the level tooling and re-verified against the real solver by
+                        // LevelPackTest on every build, so drift is impossible without a red test.
+                        // Solving at runtime is only the fallback for a level that lacks the field.
+                        dto.minMoves ?: Solver.solve(dto.toBoard()).minMoves
+                    }.also { cache = it }
                 }
             }
         }

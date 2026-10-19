@@ -30,7 +30,10 @@ data class LevelDto(
     val id: String,
     val gridSize: Int,
     val exitRow: Int,
-    val vehicles: List<VehicleDto>
+    val vehicles: List<VehicleDto>,
+    // Solver-verified best move count recorded by the level tooling (null for the original 10
+    // levels). LevelPackTest re-solves every shipped level and fails if this ever drifts.
+    val minMoves: Int? = null
 )
 
 fun LevelDto.toBoard(): Board = Board(

@@ -77,4 +77,39 @@ class ProgressStoreTest {
         // used to look up an array element, so it can safely reach the full pack size.
         assertEquals(10, nextClearedCount(currentClearedCount = 0, clearedLevelIndex = 999, totalLevels = 10))
     }
+
+    // --- v0.4 -> v0.5 migration: the pack grows from 10 to 25 levels; stored progress is a
+    // plain count, so these pin down that nobody loses or gains progress by updating. ---
+
+    @Test
+    fun `a v0_4 player who cleared every old level lands on level 11 unlocked but not cleared`() {
+        val storedByV04 = 10
+        val total = 25
+        assertTrue("level 10 (index 9) stays cleared", 9 < storedByV04)
+        assertTrue("level 11 (index 10) is now unlocked", 10 <= storedByV04)
+        assertFalse("level 11 (index 10) is not cleared", 10 < storedByV04)
+        assertFalse("level 12 (index 11) stays locked", 11 <= storedByV04)
+        // Replaying an old level must not move them backwards...
+        assertEquals(10, nextClearedCount(storedByV04, clearedLevelIndex = 3, totalLevels = total))
+        // ...and clearing level 11 advances them as normal.
+        assertEquals(11, nextClearedCount(storedByV04, clearedLevelIndex = 10, totalLevels = total))
+    }
+
+    @Test
+    fun `a v0_4 player mid-way keeps exactly their progress when replaying`() {
+        for (stored in 1..10) {
+            // Replaying the first level never changes stored progress, at any point in the old pack.
+            assertEquals(stored, nextClearedCount(stored, clearedLevelIndex = 0, totalLevels = 25))
+            // Clearing the frontier level advances by exactly one, as before the update.
+            assertEquals(stored + 1, nextClearedCount(stored, clearedLevelIndex = stored, totalLevels = 25))
+        }
+        // A fresh install is unaffected too.
+        assertEquals(1, nextClearedCount(0, clearedLevelIndex = 0, totalLevels = 25))
+    }
+
+    @Test
+    fun `the cap now follows the longer pack`() {
+        assertEquals(25, nextClearedCount(currentClearedCount = 24, clearedLevelIndex = 24, totalLevels = 25))
+        assertEquals(25, nextClearedCount(currentClearedCount = 0, clearedLevelIndex = 999, totalLevels = 25))
+    }
 }

@@ -178,11 +178,12 @@ fun GameScreen(
                 // button reads as "the source" of the glow that appears on the board.
                 Button(
                     onClick = { viewModel.requestHint() },
+                    enabled = !viewModel.hintThinking.value,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = BoardColors.hintGlow,
                         contentColor = Color(0xFF3B2A1B)
                     )
-                ) { Text("Hint") }
+                ) { Text(if (viewModel.hintThinking.value) "..." else "Hint") }
                 Button(onClick = { viewModel.undo() }) { Text("Undo") }
                 Button(onClick = { viewModel.restart() }) { Text("Restart") }
             }

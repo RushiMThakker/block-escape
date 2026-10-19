@@ -1,5 +1,8 @@
 package com.rushi.blockescape.ui
 
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlin.coroutines.CoroutineContext
 import com.rushi.blockescape.domain.Board
 import com.rushi.blockescape.domain.Orientation
 import com.rushi.blockescape.domain.Vehicle
@@ -21,14 +24,14 @@ class GameViewModelTest {
 
     @Test
     fun `starts with move count zero and not won`() {
-        val vm = GameViewModel(startBoard())
+        val vm = GameViewModel(startBoard(), Dispatchers.Unconfined)
         assertEquals(0, vm.moveCount.value)
         assertFalse(vm.isWon.value)
     }
 
     @Test
     fun `a legal move updates the board and increments the counter`() {
-        val vm = GameViewModel(startBoard())
+        val vm = GameViewModel(startBoard(), Dispatchers.Unconfined)
         vm.attemptMove("blocker", 2)
         assertEquals(1, vm.moveCount.value)
         assertEquals(3, vm.board.value.vehicle("blocker").row)
@@ -36,7 +39,7 @@ class GameViewModelTest {
 
     @Test
     fun `an illegal move is a no-op`() {
-        val vm = GameViewModel(startBoard())
+        val vm = GameViewModel(startBoard(), Dispatchers.Unconfined)
         vm.attemptMove("primary", 99)
         assertEquals(0, vm.moveCount.value)
         assertEquals(0, vm.board.value.vehicle("primary").col)
@@ -44,7 +47,7 @@ class GameViewModelTest {
 
     @Test
     fun `undo reverts the last move and decrements the counter`() {
-        val vm = GameViewModel(startBoard())
+        val vm = GameViewModel(startBoard(), Dispatchers.Unconfined)
         vm.attemptMove("blocker", 2)
         vm.undo()
         assertEquals(0, vm.moveCount.value)
@@ -53,14 +56,14 @@ class GameViewModelTest {
 
     @Test
     fun `undo on an empty history is a no-op`() {
-        val vm = GameViewModel(startBoard())
+        val vm = GameViewModel(startBoard(), Dispatchers.Unconfined)
         vm.undo()
         assertEquals(0, vm.moveCount.value)
     }
 
     @Test
     fun `restart resets to the initial board and clears the move count`() {
-        val vm = GameViewModel(startBoard())
+        val vm = GameViewModel(startBoard(), Dispatchers.Unconfined)
         vm.attemptMove("blocker", 2)
         vm.attemptMove("primary", 4)
         vm.restart()
@@ -71,7 +74,7 @@ class GameViewModelTest {
 
     @Test
     fun `winning move sets isWon`() {
-        val vm = GameViewModel(startBoard())
+        val vm = GameViewModel(startBoard(), Dispatchers.Unconfined)
         vm.attemptMove("blocker", 2)
         vm.attemptMove("primary", 4)
         assertTrue(vm.isWon.value)
@@ -81,13 +84,13 @@ class GameViewModelTest {
 
     @Test
     fun `starts with no hint`() {
-        val vm = GameViewModel(startBoard())
+        val vm = GameViewModel(startBoard(), Dispatchers.Unconfined)
         assertNull(vm.hint.value)
     }
 
     @Test
     fun `requestHint computes the real solver's first move for the current board`() {
-        val vm = GameViewModel(startBoard())
+        val vm = GameViewModel(startBoard(), Dispatchers.Unconfined)
         vm.requestHint()
         // startBoard() is exactly the Solver "two-move puzzle" board: the solver's
         // known-correct first move is sliding the blocker down 2 to clear row 2.
@@ -96,7 +99,7 @@ class GameViewModelTest {
 
     @Test
     fun `requestHint is computed against the CURRENT board, not the original one`() {
-        val vm = GameViewModel(startBoard())
+        val vm = GameViewModel(startBoard(), Dispatchers.Unconfined)
         // Take the solver's own first move manually, so the blocker is already out of
         // the way; from here the correct hint should be the primary's own winning move,
         // not a repeat of the now-stale original-board hint.
@@ -107,7 +110,7 @@ class GameViewModelTest {
 
     @Test
     fun `a successful move clears the current hint`() {
-        val vm = GameViewModel(startBoard())
+        val vm = GameViewModel(startBoard(), Dispatchers.Unconfined)
         vm.requestHint()
         assertTrue(vm.hint.value != null)
         vm.attemptMove("blocker", 2)
@@ -116,7 +119,7 @@ class GameViewModelTest {
 
     @Test
     fun `an illegal move attempt does not clear the current hint`() {
-        val vm = GameViewModel(startBoard())
+        val vm = GameViewModel(startBoard(), Dispatchers.Unconfined)
         vm.requestHint()
         val hintBefore = vm.hint.value
         vm.attemptMove("primary", 99) // out of range, no-op
@@ -125,7 +128,7 @@ class GameViewModelTest {
 
     @Test
     fun `undo clears the current hint`() {
-        val vm = GameViewModel(startBoard())
+        val vm = GameViewModel(startBoard(), Dispatchers.Unconfined)
         vm.attemptMove("blocker", 2)
         vm.requestHint()
         assertTrue(vm.hint.value != null)
@@ -135,7 +138,7 @@ class GameViewModelTest {
 
     @Test
     fun `restart clears the current hint`() {
-        val vm = GameViewModel(startBoard())
+        val vm = GameViewModel(startBoard(), Dispatchers.Unconfined)
         vm.requestHint()
         assertTrue(vm.hint.value != null)
         vm.restart()
@@ -144,7 +147,7 @@ class GameViewModelTest {
 
     @Test
     fun `requesting a hint on an already-won board yields no hint`() {
-        val vm = GameViewModel(startBoard())
+        val vm = GameViewModel(startBoard(), Dispatchers.Unconfined)
         vm.attemptMove("blocker", 2)
         vm.attemptMove("primary", 4)
         assertTrue(vm.isWon.value)
@@ -159,7 +162,7 @@ class GameViewModelTest {
         // hintRequestCount must still increment every call so UI code that needs to react
         // to "a hint was (re)requested" - not just "the hint value changed" - has
         // something to key off (see GameScreen.kt's hint haptic).
-        val vm = GameViewModel(startBoard())
+        val vm = GameViewModel(startBoard(), Dispatchers.Unconfined)
         assertEquals(0, vm.hintRequestCount.value)
 
         vm.requestHint()
@@ -169,5 +172,51 @@ class GameViewModelTest {
         vm.requestHint()
         assertEquals(2, vm.hintRequestCount.value)
         assertEquals(firstHint, vm.hint.value) // same board -> same solver answer
+    }
+
+    // --- Async hint: the search must not block the caller, and must never show a stale result. ---
+
+    /** Queues work instead of running it, so a test decides exactly when the "background" search finishes. */
+    private class ManualDispatcher : CoroutineDispatcher() {
+        val queue = ArrayDeque<Runnable>()
+        override fun dispatch(context: CoroutineContext, block: Runnable) { queue.addLast(block) }
+        fun runAll() { while (queue.isNotEmpty()) queue.removeFirst().run() }
+    }
+
+    @Test
+    fun `requestHint returns immediately and reports thinking until the search finishes`() {
+        val dispatcher = ManualDispatcher()
+        val vm = GameViewModel(startBoard(), dispatcher)
+        vm.requestHint()
+        assertTrue(vm.hintThinking.value)
+        assertEquals(null, vm.hint.value)
+        dispatcher.runAll()
+        assertFalse(vm.hintThinking.value)
+        assertEquals(Solver.hintMove(startBoard()), vm.hint.value)
+        assertEquals(1, vm.hintRequestCount.value)
+    }
+
+    @Test
+    fun `a move made while the search runs discards its result`() {
+        val dispatcher = ManualDispatcher()
+        val vm = GameViewModel(startBoard(), dispatcher)
+        vm.requestHint()
+        val v = vm.board.value.vehicles.first { vm.board.value.legalMoves(it.id).let { r -> r.first != 0 || r.last != 0 } }
+        vm.attemptMove(v.id, vm.board.value.legalMoves(v.id).first { it != 0 })
+        assertFalse("moving cancels the pending search", vm.hintThinking.value)
+        dispatcher.runAll()
+        assertEquals("no stale hint appears for the old board", null, vm.hint.value)
+        assertEquals(0, vm.hintRequestCount.value)
+    }
+
+    @Test
+    fun `tapping hint again while thinking does not start a second search`() {
+        val dispatcher = ManualDispatcher()
+        val vm = GameViewModel(startBoard(), dispatcher)
+        vm.requestHint()
+        vm.requestHint()
+        assertEquals(1, dispatcher.queue.size)
+        dispatcher.runAll()
+        assertEquals(1, vm.hintRequestCount.value)
     }
 }

@@ -2,6 +2,7 @@
   "id": "level_010",
   "gridSize": 6,
   "exitRow": 3,
+  "minMoves": 17,
   "vehicles": [
     {"id": "primary", "orientation": "horizontal", "length": 3, "row": 3, "col": 2, "isPrimary": true},
     {"id": "v1", "orientation": "horizontal", "length": 2, "row": 2, "col": 3, "isPrimary": false},

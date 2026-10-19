@@ -60,6 +60,19 @@ android {
     buildFeatures {
         compose = true
     }
+
+    // Offline level-design tooling (src/test/.../tools) is driven through the unit-test JVM:
+    //   gradlew testDebugUnitTest --tests "*LevelToolsTest" -PgenMode=pool -PgenOut=<dir> ...
+    // Forward those Gradle properties as system properties; they are absent in normal runs.
+    testOptions {
+        unitTests.all { test ->
+            test.maxHeapSize = if (project.hasProperty("genMode")) "5g" else "2g"
+            listOf("Mode", "Out", "Seconds", "Seed", "Floor", "Specs", "Start").forEach { name ->
+                project.findProperty("gen$name")?.let { test.systemProperty("blockescape.gen.${name.lowercase()}", it.toString()) }
+            }
+            if (project.hasProperty("genMode")) test.outputs.upToDateWhen { false }
+        }
+    }
 }
 
 dependencies {

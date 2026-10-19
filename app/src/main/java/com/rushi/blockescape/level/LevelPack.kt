@@ -8,16 +8,6 @@ package com.rushi.blockescape.level
  * this list drives it.
  */
 object LevelPack {
-    val ORDERED_LEVEL_FILES: List<String> = listOf(
-        "level_001.json",
-        "level_002.json",
-        "level_003.json",
-        "level_004.json",
-        "level_005.json",
-        "level_006.json",
-        "level_007.json",
-        "level_008.json",
-        "level_009.json",
-        "level_010.json"
-    )
+    /** level_001 .. level_025, in play order. ShippedLevelsTest checks every file exists, solves and ramps. */
+    val ORDERED_LEVEL_FILES: List<String> = (1..25).map { "level_%03d.json".format(it) }
 }
