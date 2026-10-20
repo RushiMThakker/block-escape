@@ -1,0 +1,7 @@
+<en-US>
+15 new levels: Block Escape now has 25 puzzles, growing to boards that need up to 30 moves.
+The level list opens on the level you are up to.
+Hints now run in the background, so they never freeze the game on the harder boards.
+The board no longer jumps when the ad banner loads.
+A short "all levels cleared" message at the end of the pack.
+</en-US>

@@ -5,13 +5,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import com.rushi.blockescape.domain.Board
 import com.rushi.blockescape.solver.Solver
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 
 class GameViewModel(
@@ -23,6 +23,12 @@ class GameViewModel(
 
     private val hintScope = CoroutineScope(SupervisorJob() + hintDispatcher)
     private var hintJob: Job? = null
+
+    // A search result may only be applied if nothing has invalidated its board since it started.
+    // Every move/undo/restart bumps this generation under the same lock the result is applied
+    // under, so a search that finishes just after the board changed can never write a stale hint.
+    private val hintLock = Any()
+    private var hintGeneration = 0
 
     // True while a hint search is running; the UI shows a short "thinking" state instead of freezing.
     private val _hintThinking = mutableStateOf(false)
@@ -61,10 +67,13 @@ class GameViewModel(
 
     /** Drops any running search and the shown hint: the board they were computed for is gone. */
     private fun clearHint() {
-        hintJob?.cancel()
-        hintJob = null
-        _hintThinking.value = false
-        _hint.value = null
+        synchronized(hintLock) {
+            hintGeneration++
+            hintJob?.cancel()
+            hintJob = null
+            _hintThinking.value = false
+            _hint.value = null
+        }
     }
 
     override fun onCleared() {
@@ -108,16 +117,30 @@ class GameViewModel(
      * board as it stands right now.
      */
     fun requestHint() {
-        if (_hintThinking.value) return
-        val snapshot = _board.value
-        _hintThinking.value = true
+        val snapshot: Board
+        val generation: Int
+        synchronized(hintLock) {
+            if (_hintThinking.value) return
+            _hintThinking.value = true
+            snapshot = _board.value
+            generation = hintGeneration
+        }
         hintJob = hintScope.launch {
-            val move = Solver.hintMove(snapshot)
-            // A move, undo or restart while searching cancels this job: never show a stale hint.
-            ensureActive()
-            _hint.value = move
-            _hintThinking.value = false
-            _hintRequestCount.value += 1
+            // A solver failure must not crash the game or leave the button stuck on "...": no hint.
+            val move = try {
+                Solver.hintMove(snapshot)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                null
+            }
+            synchronized(hintLock) {
+                // A move, undo or restart since the search began: its board is gone, drop the result.
+                if (generation != hintGeneration) return@launch
+                _hint.value = move
+                _hintThinking.value = false
+                _hintRequestCount.value += 1
+            }
         }
     }
 }

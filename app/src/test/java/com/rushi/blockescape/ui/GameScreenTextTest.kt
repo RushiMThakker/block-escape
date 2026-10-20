@@ -24,4 +24,10 @@ class GameScreenTextTest {
     fun `shows the comparison when the player matched par exactly`() {
         assertEquals("Solved in 2 moves! (Best: 2)", winOverlayMovesText(moveCount = 2, bestMoves = 2))
     }
+
+    @Test
+    fun `last-level message is honest and short`() {
+        // Must not promise a date or a specific number of levels.
+        assertEquals("You cleared every level! More are on the way.", LAST_LEVEL_MESSAGE)
+    }
 }

@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -55,6 +56,9 @@ import androidx.compose.ui.unit.sp
  * Shares GameScreen's "BLOCK ESCAPE" wordmark and warm radial background wash so the two
  * screens read as one app rather than two stapled-together UIs.
  */
+/** Typical column count of the adaptive grid on a phone; only used to start the scroll one row early. */
+private const val GRID_COLUMNS_HINT = 3
+
 @Composable
 fun LevelSelectScreen(
     totalLevels: Int,
@@ -100,7 +104,15 @@ fun LevelSelectScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
+            // Open on the level the player is up to rather than always at level 1: with 25 levels the
+            // frontier can be several screens down. Starting one row above it keeps the context of
+            // the last cleared levels visible. Recomputed on every visit, so returning from a level
+            // also lands on the newly unlocked one.
+            val gridState = rememberLazyGridState(
+                initialFirstVisibleItemIndex = (clearedCount.coerceAtMost(totalLevels - 1) - GRID_COLUMNS_HINT).coerceAtLeast(0)
+            )
             LazyVerticalGrid(
+                state = gridState,
                 columns = GridCells.Adaptive(minSize = 88.dp),
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),

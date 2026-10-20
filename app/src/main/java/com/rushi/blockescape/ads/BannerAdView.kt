@@ -2,12 +2,14 @@ package com.rushi.blockescape.ads
 
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -87,8 +89,11 @@ fun BannerAdView(modifier: Modifier = Modifier) {
             }
         }
 
+        // Reserve the banner's exact height from the first frame. An AdView measures as zero until
+        // an ad has loaded, so without this the content above re-centres (the whole board jumps
+        // ~75px) the moment the ad arrives - in the middle of a drag if the player is quick.
         AndroidView(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().height(adSize.height.dp),
             factory = { adView }
         )
     }

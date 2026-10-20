@@ -27,8 +27,8 @@ android {
         applicationId = "com.rushi.blockescape"
         minSdk = 24
         targetSdk = 36
-        versionCode = 4
-        versionName = "0.4"
+        versionCode = 5
+        versionName = "0.5"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -67,7 +67,7 @@ android {
     testOptions {
         unitTests.all { test ->
             test.maxHeapSize = if (project.hasProperty("genMode")) "5g" else "2g"
-            listOf("Mode", "Out", "Seconds", "Seed", "Floor", "Specs", "Start").forEach { name ->
+            listOf("Mode", "Out", "Seconds", "Seed", "Floor", "Specs", "Start", "Level").forEach { name ->
                 project.findProperty("gen$name")?.let { test.systemProperty("blockescape.gen.${name.lowercase()}", it.toString()) }
             }
             if (project.hasProperty("genMode")) test.outputs.upToDateWhen { false }

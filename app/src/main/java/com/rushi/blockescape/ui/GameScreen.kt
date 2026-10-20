@@ -288,6 +288,16 @@ fun GameScreen(
                         Spacer(modifier = Modifier.padding(4.dp))
                         Button(onClick = { viewModel.restart() }) { Text("Play Again") }
                     } else {
+                        // Last level of the pack: say so, and give a way back to the level grid.
+                        Text(
+                            LAST_LEVEL_MESSAGE,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = Color.White.copy(alpha = 0.85f),
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.padding(8.dp))
+                        Button(onClick = { onBackToLevels() }) { Text("All Levels") }
+                        Spacer(modifier = Modifier.padding(4.dp))
                         Button(onClick = { viewModel.restart() }) { Text("Play Again") }
                     }
                 }
@@ -308,3 +318,6 @@ fun GameScreen(
  */
 fun winOverlayMovesText(moveCount: Int, bestMoves: Int?): String =
     if (bestMoves != null) "Solved in $moveCount moves! (Best: $bestMoves)" else "Solved in $moveCount moves!"
+
+/** Shown under the move count when the player finishes the final level of the pack. */
+const val LAST_LEVEL_MESSAGE = "You cleared every level! More are on the way."

@@ -129,6 +129,30 @@ class LevelToolsTest {
                     }
                 }
             }
+            "solve" -> {
+                // Writes the full optimal move list of shipped boards ("all" = every level and advent
+                // board): "<H|V> row col length delta" per move, state at that moment, for scripted
+                // on-device playthroughs.
+                val requested = System.getProperty("blockescape.gen.level") ?: error("genLevel required")
+                val names = if (requested == "all") {
+                    listOf("levels", "advent").flatMap { d ->
+                        File("src/main/assets/$d").listFiles { f -> f.name.endsWith(".json") }!!.map { it.nameWithoutExtension }
+                    }.sorted()
+                } else requested.split(",")
+                for (name in names) {
+                    val dir = if (name.startsWith("advent")) "advent" else "levels"
+                    var board = LevelParser.parse(File("src/main/assets/$dir/$name.json").readText()).toBoard()
+                    val lines = ArrayList<String>()
+                    while (!board.isSolved) {
+                        val move = Solver.hintMove(board) ?: error("unsolvable")
+                        val v = board.vehicle(move.vehicleId)
+                        lines.add("${if (v.orientation.name == "HORIZONTAL") "H" else "V"} ${v.row} ${v.col} ${v.length} ${move.delta}")
+                        board = board.move(move.vehicleId, move.delta)
+                    }
+                    File(outDir, "solution-$name.txt").writeText(lines.joinToString("\n"))
+                }
+                println("GEN solved ${names.size} boards")
+            }
             else -> error("unknown mode $mode")
         }
     }

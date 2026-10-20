@@ -31,8 +31,8 @@ data class LevelDto(
     val gridSize: Int,
     val exitRow: Int,
     val vehicles: List<VehicleDto>,
-    // Solver-verified best move count recorded by the level tooling (null for the original 10
-    // levels). LevelPackTest re-solves every shipped level and fails if this ever drifts.
+    // Solver-verified best move count recorded by the level tooling (null only for a level that
+    // lacks it). The pack tests re-solve every shipped level and fail if this ever drifts.
     val minMoves: Int? = null
 )
 
