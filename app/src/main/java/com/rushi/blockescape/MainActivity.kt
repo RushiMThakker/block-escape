@@ -2,12 +2,14 @@ package com.rushi.blockescape
 
 import android.app.Activity
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -17,18 +19,28 @@ import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.android.gms.ads.MobileAds
 import com.google.android.gms.ads.RequestConfiguration
 import com.rushi.blockescape.level.LevelBestMoves
 import com.rushi.blockescape.level.LevelPack
 import com.rushi.blockescape.level.LevelRepository
+import com.rushi.blockescape.level.toBoard
 import com.rushi.blockescape.progress.ProgressStore
+import com.rushi.blockescape.season.AdventBits
+import com.rushi.blockescape.season.CalendarDate
+import com.rushi.blockescape.season.Season
+import com.rushi.blockescape.season.SeasonStore
+import com.rushi.blockescape.ui.AdventScreen
 import com.rushi.blockescape.ui.GameScreen
 import com.rushi.blockescape.ui.GameViewModel
 import com.rushi.blockescape.ui.HowToPlayDialog
 import com.rushi.blockescape.ui.LevelSelectScreen
+import com.rushi.blockescape.ui.SettingsScreen
 import com.rushi.blockescape.ui.theme.BlockEscapeTheme
 
 /**
@@ -76,29 +88,42 @@ class MainActivity : ComponentActivity() {
         // Fire-and-forget: doesn't need to block startup, just needs to happen before
         // BannerAdView requests its first ad.
         MobileAds.initialize(this) { }
+        // Debug builds can pretend it is another date, to test the Advent calendar:
+        //   adb shell am start -n com.rushi.blockescape/.MainActivity --es debug_date 2026-12-05
+        // Season.resolveToday ignores the extra unless the build is debuggable, so a release build
+        // always uses the real date whatever an intent carries.
+        val debugDate = intent?.getStringExtra(EXTRA_DEBUG_DATE)
+        val debuggable = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
         setContent {
-            BlockEscapeTheme {
-                Surface(modifier = Modifier) {
-                    BlockEscapeApp(context = applicationContext, activity = this@MainActivity)
-                }
-            }
+            BlockEscapeApp(
+                context = applicationContext,
+                activity = this@MainActivity,
+                debugDateText = debugDate,
+                debuggable = debuggable
+            )
         }
     }
 }
 
-/**
- * Two-screen local navigation: level-select (the app's landing screen) and gameplay. No
- * Jetpack Navigation library — this project deliberately avoids over-engineering (see
- * LevelPack.kt's plain ordered-list approach, GameViewModel's direct-construction-not-
- * ViewModelProvider approach); a small local sealed class is enough here since the only
- * "back stack" that exists is "Game always returns to LevelSelect."
- */
+private const val EXTRA_DEBUG_DATE = "debug_date"
+
 /** 0-based index of the level whose first clear triggers the automatic review prompt (level 3). */
 private const val REVIEW_PROMPT_LEVEL_INDEX = 2
 
+/**
+ * Local navigation: level-select (the app's landing screen), gameplay, and - in the festive
+ * season - the Advent calendar with its own games, plus settings. No Jetpack Navigation library —
+ * this project deliberately avoids over-engineering (see LevelPack.kt's plain ordered-list
+ * approach, GameViewModel's direct-construction-not-ViewModelProvider approach); a small local
+ * sealed class is enough since back always goes one step up: Game -> LevelSelect,
+ * AdventGame -> Advent -> LevelSelect, Settings -> LevelSelect.
+ */
 private sealed class Screen {
     data object LevelSelect : Screen()
     data class Game(val levelIndex: Int) : Screen()
+    data object Advent : Screen()
+    data class AdventGame(val day: Int) : Screen()
+    data object Settings : Screen()
 }
 
 /**
@@ -109,17 +134,34 @@ private sealed class Screen {
  * mid-level would reset `screen` back to its initial LevelSelect value and bounce the
  * player out of the level entirely, regardless of any ViewModel-level fix. Screen itself
  * isn't Parcelable (it's a small local sealed class, deliberately - see the doc above),
- * so it's saved as a plain Int: -1 for LevelSelect, else the level index for Game.
+ * so it's saved as a plain Int: -1 LevelSelect, the level index (>= 0) for Game, -2 Advent,
+ * -3 Settings, and -(100 + day) for an Advent game.
  */
 private val ScreenSaver = Saver<Screen, Int>(
-    save = { screen -> if (screen is Screen.Game) screen.levelIndex else -1 },
-    restore = { saved -> if (saved < 0) Screen.LevelSelect else Screen.Game(saved) }
+    save = { screen ->
+        when (screen) {
+            is Screen.Game -> screen.levelIndex
+            Screen.Advent -> -2
+            Screen.Settings -> -3
+            is Screen.AdventGame -> -(100 + screen.day)
+            Screen.LevelSelect -> -1
+        }
+    },
+    restore = { saved ->
+        when {
+            saved >= 0 -> Screen.Game(saved)
+            saved == -2 -> Screen.Advent
+            saved == -3 -> Screen.Settings
+            saved <= -101 -> Screen.AdventGame(-saved - 100)
+            else -> Screen.LevelSelect
+        }
+    }
 )
 
 /**
- * Owns progress persistence + screen state above both screens. The app now opens to
- * level-select rather than straight into gameplay (a deliberate UX change, per the owner)
- * and only enters gameplay once a level is tapped.
+ * Owns progress persistence + screen state above all screens. The app opens to level-select
+ * rather than straight into gameplay (a deliberate UX change, per the owner) and only enters
+ * gameplay once a level is tapped.
  *
  * `clearedCount` (how many levels have been cleared) is the single source of truth for
  * lock/cleared state, hoisted here (not inside either screen) so it survives navigating
@@ -132,11 +174,31 @@ private val ScreenSaver = Saver<Screen, Int>(
  * capped at the last valid level, which made clearing the final level in the pack
  * indistinguishable from merely having unlocked it — the last level could never show as
  * "cleared". See ProgressStore.kt's nextClearedCount doc for the full reasoning.
+ *
+ * The festive look and the Advent calendar depend on `today` (and the Seasonal look setting);
+ * Advent progress lives in SeasonStore, completely separate from `clearedCount`.
  */
 @Composable
-private fun BlockEscapeApp(context: Context, activity: Activity) {
+private fun BlockEscapeApp(context: Context, activity: Activity, debugDateText: String?, debuggable: Boolean) {
     val levelFiles = LevelPack.ORDERED_LEVEL_FILES
     val progressStore = remember { ProgressStore(context) }
+    val seasonStore = remember { SeasonStore(context) }
+
+    fun resolveToday() = Season.resolveToday(CalendarDate.systemToday(), debugDateText, debuggable)
+    var today by remember { mutableStateOf(resolveToday()) }
+    // The date can roll over while the app sits in the background (midnight opens a new door):
+    // read it again every time the app comes back to the foreground.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) today = resolveToday()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    var look by remember { mutableStateOf(seasonStore.seasonalLook()) }
+    val seasonalActive = Season.lookActive(look, today)
+    var adventBits by remember(today) { mutableIntStateOf(seasonStore.clearedBits(today)) }
 
     // The owner's decision: open here, not straight into gameplay like before.
     // rememberSaveable (not remember) so this - and therefore which screen is showing -
@@ -161,6 +223,10 @@ private fun BlockEscapeApp(context: Context, activity: Activity) {
         levelSessionCounter++
         screen = Screen.Game(idx)
     }
+    fun enterAdventDay(day: Int) {
+        levelSessionCounter++
+        screen = Screen.AdventGame(day)
+    }
 
     LaunchedEffect(screen) {
         if (screen is Screen.LevelSelect) {
@@ -169,15 +235,13 @@ private fun BlockEscapeApp(context: Context, activity: Activity) {
     }
 
     // The solver's best-possible move count for every level, one entry per index into
-    // `levelFiles` - null until the background solve finishes. LevelBestMoves.getOrCompute
-    // runs the real BFS solver off the main thread and caches the result for the rest of
-    // the process's lifetime (see its doc for the measured cost/why this isn't done
-    // synchronously), so LaunchedEffect(Unit) - fires exactly once for as long as this
-    // composable stays in composition, which for the app's single root composable means
-    // once per process, matching the cache's own lifetime - is enough; navigating back and
-    // forth between level-select and gameplay never re-triggers it. Both screens below
-    // degrade gracefully to "no number yet" while this is still null/incomplete, rather
-    // than blocking on it.
+    // `levelFiles` - null until the background load finishes. LevelBestMoves.getOrCompute
+    // reads the solver-verified count recorded in each level file off the main thread and
+    // caches it for the rest of the process's lifetime, so LaunchedEffect(Unit) - fires
+    // exactly once for as long as this composable stays in composition, which for the app's
+    // single root composable means once per process - is enough; navigating back and forth
+    // never re-triggers it. Both screens below degrade gracefully to "no number yet" while
+    // this is still null/incomplete, rather than blocking on it.
     var bestMoveCounts by remember { mutableStateOf<List<Int>?>(null) }
     LaunchedEffect(Unit) {
         bestMoveCounts = LevelBestMoves.getOrCompute(context)
@@ -185,68 +249,135 @@ private fun BlockEscapeApp(context: Context, activity: Activity) {
 
     var showHowToPlay by rememberSaveable { mutableStateOf(!progressStore.hasSeenHowToPlay()) }
 
-    when (val current = screen) {
-        is Screen.LevelSelect -> {
-            LevelSelectScreen(
-                totalLevels = levelFiles.size,
-                clearedCount = clearedCount,
-                bestMoveCounts = bestMoveCounts ?: emptyList(),
-                onLevelSelected = { idx -> enterLevel(idx) },
-                onHowToPlay = { showHowToPlay = true },
-                onRate = { requestInAppReview(activity, fallbackToStore = true) },
-                onShare = { shareApp(context) }
-            )
-            if (showHowToPlay) {
-                HowToPlayDialog(
-                    onDismiss = {
-                        showHowToPlay = false
-                        progressStore.markHowToPlaySeen()
+    BlockEscapeTheme(seasonal = seasonalActive) {
+        Surface(modifier = Modifier) {
+            when (val current = screen) {
+                is Screen.LevelSelect -> {
+                    LevelSelectScreen(
+                        totalLevels = levelFiles.size,
+                        clearedCount = clearedCount,
+                        bestMoveCounts = bestMoveCounts ?: emptyList(),
+                        onLevelSelected = { idx -> enterLevel(idx) },
+                        onHowToPlay = { showHowToPlay = true },
+                        onRate = { requestInAppReview(activity, fallbackToStore = true) },
+                        onShare = { shareApp(context) },
+                        adventVisible = Season.adventVisible(today),
+                        adventSolved = AdventBits.count(adventBits),
+                        onAdvent = { screen = Screen.Advent },
+                        onSettings = { screen = Screen.Settings }
+                    )
+                    if (showHowToPlay) {
+                        HowToPlayDialog(
+                            onDismiss = {
+                                showHowToPlay = false
+                                progressStore.markHowToPlaySeen()
+                            }
+                        )
                     }
-                )
-            }
-        }
+                }
 
-        is Screen.Game -> {
-            // Back button/gesture from inside a level returns to level-select instead of
-            // exiting the app. LevelSelect itself gets no BackHandler, so back there
-            // falls through to the platform default.
-            BackHandler { screen = Screen.LevelSelect }
+                is Screen.Game -> {
+                    // Back button/gesture from inside a level returns to level-select instead of
+                    // exiting the app. LevelSelect itself gets no BackHandler, so back there
+                    // falls through to the platform default.
+                    BackHandler { screen = Screen.LevelSelect }
 
-            val levelIndex = current.levelIndex
-            // viewModel() (not remember) so this GameViewModel - move count, undo
-            // history, current board - is backed by the Activity's ViewModelStore and
-            // survives rotation instead of being discarded and rebuilt from scratch.
-            // The key combines levelIndex (so switching levels via onNextLevel always
-            // gets a distinct instance) with levelSessionCounter (so replaying the SAME
-            // level after a level-select round-trip also gets a distinct, fresh
-            // instance instead of the ViewModelStore handing back the old one) - see
-            // levelSessionCounter's doc above for why both are needed.
-            val viewModel = viewModel(key = "level_${levelIndex}_$levelSessionCounter") {
-                val board = LevelRepository(context).loadLevel(levelFiles[levelIndex])
-                GameViewModel(board)
-            }
-
-            GameScreen(
-                viewModel = viewModel,
-                levelNumber = levelIndex + 1,
-                totalLevels = levelFiles.size,
-                hasNextLevel = levelIndex < levelFiles.lastIndex,
-                onNextLevel = {
-                    if (levelIndex < levelFiles.lastIndex) enterLevel(levelIndex + 1)
-                },
-                onBackToLevels = { screen = Screen.LevelSelect },
-                onLevelCleared = {
-                    progressStore.markLevelCleared(levelIndex, levelFiles.size)
-                    clearedCount = progressStore.clearedCount()
-                    // One-time, automatic rating prompt once the player has cleared level 3 and is
-                    // clearly enjoying the game; the footer "Rate" button remains for everyone else.
-                    if (levelIndex == REVIEW_PROMPT_LEVEL_INDEX && !progressStore.hasRequestedReview()) {
-                        progressStore.markReviewRequested()
-                        requestInAppReview(activity, fallbackToStore = false)
+                    val levelIndex = current.levelIndex
+                    // viewModel() (not remember) so this GameViewModel - move count, undo
+                    // history, current board - is backed by the Activity's ViewModelStore and
+                    // survives rotation instead of being discarded and rebuilt from scratch.
+                    // The key combines levelIndex (so switching levels via onNextLevel always
+                    // gets a distinct instance) with levelSessionCounter (so replaying the SAME
+                    // level after a level-select round-trip also gets a distinct, fresh
+                    // instance instead of the ViewModelStore handing back the old one) - see
+                    // levelSessionCounter's doc above for why both are needed.
+                    val viewModel = viewModel(key = "level_${levelIndex}_$levelSessionCounter") {
+                        val board = LevelRepository(context).loadLevel(levelFiles[levelIndex])
+                        GameViewModel(board)
                     }
-                },
-                bestMoves = bestMoveCounts?.getOrNull(levelIndex)
-            )
+
+                    GameScreen(
+                        viewModel = viewModel,
+                        levelNumber = levelIndex + 1,
+                        totalLevels = levelFiles.size,
+                        hasNextLevel = levelIndex < levelFiles.lastIndex,
+                        onNextLevel = {
+                            if (levelIndex < levelFiles.lastIndex) enterLevel(levelIndex + 1)
+                        },
+                        onBackToLevels = { screen = Screen.LevelSelect },
+                        onLevelCleared = {
+                            progressStore.markLevelCleared(levelIndex, levelFiles.size)
+                            clearedCount = progressStore.clearedCount()
+                            // One-time, automatic rating prompt once the player has cleared level 3 and is
+                            // clearly enjoying the game; the footer "Rate" button remains for everyone else.
+                            if (levelIndex == REVIEW_PROMPT_LEVEL_INDEX && !progressStore.hasRequestedReview()) {
+                                progressStore.markReviewRequested()
+                                requestInAppReview(activity, fallbackToStore = false)
+                            }
+                        },
+                        bestMoves = bestMoveCounts?.getOrNull(levelIndex)
+                    )
+                }
+
+                is Screen.Advent -> {
+                    BackHandler { screen = Screen.LevelSelect }
+                    if (!Season.adventVisible(today)) {
+                        // Out of season (e.g. restored after rotation on 7 January): the calendar is hidden.
+                        LaunchedEffect(Unit) { screen = Screen.LevelSelect }
+                    } else {
+                        AdventScreen(
+                            today = today,
+                            clearedBits = adventBits,
+                            onOpenDoor = { day -> enterAdventDay(day) },
+                            onBack = { screen = Screen.LevelSelect },
+                            // Spoiler-free: only says which day of the calendar is current.
+                            onShare = { shareApp(context, adventDay = Season.doorsOpen(today)) }
+                        )
+                    }
+                }
+
+                is Screen.AdventGame -> {
+                    BackHandler { screen = Screen.Advent }
+                    val day = current.day
+                    if (Season.doorState(day, today, cleared = false) == Season.DoorState.LOCKED) {
+                        // The door is not open on this date (stale state): go back to the calendar.
+                        LaunchedEffect(day) { screen = Screen.Advent }
+                    } else {
+                        val dto = remember(day) { LevelRepository(context).loadAdventDto(day) }
+                        val viewModel = viewModel(key = "advent_${day}_$levelSessionCounter") {
+                            GameViewModel(dto.toBoard())
+                        }
+                        GameScreen(
+                            viewModel = viewModel,
+                            levelNumber = day,
+                            totalLevels = Season.DOORS,
+                            hasNextLevel = false,
+                            onBackToLevels = { screen = Screen.Advent },
+                            onLevelCleared = {
+                                seasonStore.markCleared(day, today)
+                                adventBits = seasonStore.clearedBits(today)
+                            },
+                            bestMoves = dto.minMoves,
+                            titleOverride = "Advent  ·  Day $day",
+                            finishedMessage = "Door $day solved!",
+                            backLabel = "Calendar",
+                            topBackLabel = "Calendar"
+                        )
+                    }
+                }
+
+                is Screen.Settings -> {
+                    BackHandler { screen = Screen.LevelSelect }
+                    SettingsScreen(
+                        look = look,
+                        onLookChange = { chosen ->
+                            look = chosen
+                            seasonStore.setSeasonalLook(chosen)
+                        },
+                        onBack = { screen = Screen.LevelSelect }
+                    )
+                }
+            }
         }
     }
 }

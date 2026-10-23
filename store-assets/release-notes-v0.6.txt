@@ -1,0 +1,5 @@
+<en-US>
+New: an Advent calendar. 24 doors, a new puzzle each day from 1 December, and every door stays open for catch-up until 6 January.
+A festive look for the season: the red block becomes a sleigh, the others gift boxes, with string lights and snow. It turns on automatically from 1 December to 6 January, or choose On or Off in Settings.
+Snow and lights pause while you drag a block. Small fixes.
+</en-US>

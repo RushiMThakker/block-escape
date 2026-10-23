@@ -6,7 +6,12 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.runtime.CompositionLocalProvider
 import com.rushi.blockescape.ui.BoardColors
+import com.rushi.blockescape.ui.festive.Festive
+import com.rushi.blockescape.ui.festive.LocalReduceMotion
+import com.rushi.blockescape.ui.festive.LocalSeasonal
+import com.rushi.blockescape.ui.festive.rememberReduceMotion
 
 // The app's overall chrome (everything outside the wood-grain board) is tuned to sit in
 // the same warm/neutral visual family as BoardColors' wood palette, without literally
@@ -39,8 +44,32 @@ private val DarkColors = darkColorScheme(
     onSurfaceVariant = Color(0xFFD8C6AC)
 )
 
+// The festive look replaces the whole palette (light or dark): a winter night with frost-blue controls.
+// Gold is kept for lights and trim only, so the amber Hint button still stands apart.
+private val WinterColors = darkColorScheme(
+    primary = Festive.frostSoft,
+    onPrimary = Color(0xFF0B1630),
+    secondary = Festive.frost,
+    onSecondary = Color(0xFF0B1630),
+    background = Festive.skyTop,
+    onBackground = Color(0xFFEAF2FB),
+    surface = Color(0xFF16305C),
+    onSurface = Color(0xFFEAF2FB),
+    surfaceVariant = Color(0xFF1D3A6E),
+    onSurfaceVariant = Color(0xFFB9CCE6)
+)
+
 @Composable
-fun BlockEscapeTheme(content: @Composable () -> Unit) {
-    val colors = if (isSystemInDarkTheme()) DarkColors else LightColors
-    MaterialTheme(colorScheme = colors, content = content)
+fun BlockEscapeTheme(seasonal: Boolean = false, content: @Composable () -> Unit) {
+    val colors = when {
+        seasonal -> WinterColors
+        isSystemInDarkTheme() -> DarkColors
+        else -> LightColors
+    }
+    CompositionLocalProvider(
+        LocalSeasonal provides seasonal,
+        LocalReduceMotion provides rememberReduceMotion()
+    ) {
+        MaterialTheme(colorScheme = colors, content = content)
+    }
 }

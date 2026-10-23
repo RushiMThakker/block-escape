@@ -8,6 +8,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,11 +23,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,12 +41,18 @@ import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.rushi.blockescape.ads.BannerAdView
 import com.rushi.blockescape.haptics.HapticFeedback
+import com.rushi.blockescape.ui.festive.Festive
+import com.rushi.blockescape.ui.festive.LocalAmbientPaused
+import com.rushi.blockescape.ui.festive.LocalSeasonal
+import com.rushi.blockescape.ui.festive.drawLightsAround
+import com.rushi.blockescape.ui.festive.rememberFestiveClock
 import kotlinx.coroutines.delay
 
 @Composable
@@ -59,7 +69,12 @@ fun GameScreen(
     // (default null) rather than required: the caller may not have this ready yet (the
     // background solve is still in flight) or may simply not want the comparison shown -
     // either way this screen degrades gracefully to the plain "Solved in N moves!" text.
-    bestMoves: Int? = null
+    bestMoves: Int? = null,
+    // Advent boards replace "Level N of M" with their own heading and finish on "back to the calendar".
+    titleOverride: String? = null,
+    finishedMessage: String = LAST_LEVEL_MESSAGE,
+    backLabel: String = "All Levels",
+    topBackLabel: String = "Levels"
 ) {
     val board = viewModel.board.value
     val moveCount = viewModel.moveCount.value
@@ -107,11 +122,11 @@ fun GameScreen(
         Brush.radialGradient(listOf(colorScheme.surface, colorScheme.background))
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(backgroundBrush)
-    ) {
+    // Ambient snow and twinkle stand down while a block is being dragged (see LocalAmbientPaused).
+    val ambientPaused = remember { mutableStateOf(false) }
+    CompositionLocalProvider(LocalAmbientPaused provides ambientPaused) {
+    // The game screen keeps the puzzle quiet: lights frame the board, but no garland across the top.
+    ScreenSurface(seasonal = LocalSeasonal.current, brush = backgroundBrush, garland = false) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -127,7 +142,15 @@ fun GameScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            if (totalLevels > 1) {
+            if (titleOverride != null) {
+                Text(
+                    text = titleOverride,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            } else if (totalLevels > 1) {
                 Text(
                     text = "Level $levelNumber of $totalLevels",
                     style = MaterialTheme.typography.labelLarge,
@@ -165,7 +188,7 @@ fun GameScreen(
                         )
                     }
                 }
-                Button(onClick = onBackToLevels) { Text("Levels") }
+                Button(onClick = onBackToLevels) { Text(topBackLabel) }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -229,7 +252,28 @@ fun GameScreen(
                             }
                         }
                 )
-                GameBoardScreen(board = board, hint = hint, onMove = viewModel::attemptMove)
+                if (LocalSeasonal.current) {
+                    // String lights threaded round the board, in the padding band outside the wood.
+                    val lightsClock = rememberFestiveClock(20)
+                    Canvas(modifier = Modifier.fillMaxWidth().aspectRatio(1f).graphicsLayer()) {
+                        val pad = 16.dp.toPx()
+                        val cellPx = (size.width - pad * 2f) / board.width
+                        drawLightsAround(
+                            inset = 7.dp.toPx(),
+                            spacing = 52.dp.toPx(),
+                            bulbRadius = 3.2.dp.toPx(),
+                            time = lightsClock.value,
+                            exitY = pad + (board.exitRow + 0.5f) * cellPx,
+                            exitHalfGap = cellPx * 0.75f
+                        )
+                    }
+                }
+                GameBoardScreen(
+                    board = board,
+                    hint = hint,
+                    onMove = viewModel::attemptMove,
+                    onInteractionChange = { ambientPaused.value = it }
+                )
             }
 
             // Ad stub (see ads/AdConfig.kt) pinned as the last item in this Column, so it
@@ -275,34 +319,66 @@ fun GameScreen(
                     .background(Color.Black.copy(alpha = 0.6f)),
                 contentAlignment = Alignment.Center
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        winOverlayMovesText(moveCount, bestMoves),
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = Color.White,
-                        textAlign = TextAlign.Center
-                    )
+                // In the festive look the message sits on a dark panel (the gift art behind it made it hard to
+                // read), and the buttons share one width. The classic overlay is unchanged.
+                val seasonalOverlay = LocalSeasonal.current
+                val buttonModifier = if (seasonalOverlay) Modifier.width(220.dp) else Modifier
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = if (seasonalOverlay) {
+                        Modifier
+                            .padding(horizontal = 24.dp)
+                            .background(Festive.skyTop.copy(alpha = 0.86f), RoundedCornerShape(24.dp))
+                            .padding(horizontal = 22.dp, vertical = 26.dp)
+                    } else Modifier
+                ) {
+                    if (seasonalOverlay) {
+                        // Narrow panel: the best-score note gets its own line instead of wrapping mid-parenthesis.
+                        val (headline, bestLine) = winOverlayLines(moveCount, bestMoves)
+                        Text(
+                            headline,
+                            style = MaterialTheme.typography.headlineMedium,
+                            color = Color.White,
+                            textAlign = TextAlign.Center
+                        )
+                        if (bestLine != null) {
+                            Text(
+                                bestLine,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = Color.White.copy(alpha = 0.85f),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    } else {
+                        Text(
+                            winOverlayMovesText(moveCount, bestMoves),
+                            style = MaterialTheme.typography.headlineMedium,
+                            color = Color.White,
+                            textAlign = TextAlign.Center
+                        )
+                    }
                     Spacer(modifier = Modifier.padding(8.dp))
                     if (hasNextLevel) {
-                        Button(onClick = { onNextLevel() }) { Text("Next Level") }
+                        Button(onClick = { onNextLevel() }, modifier = buttonModifier) { Text("Next Level") }
                         Spacer(modifier = Modifier.padding(4.dp))
-                        Button(onClick = { viewModel.restart() }) { Text("Play Again") }
+                        Button(onClick = { viewModel.restart() }, modifier = buttonModifier) { Text("Play Again") }
                     } else {
                         // Last level of the pack: say so, and give a way back to the level grid.
                         Text(
-                            LAST_LEVEL_MESSAGE,
+                            finishedMessage,
                             style = MaterialTheme.typography.bodyLarge,
                             color = Color.White.copy(alpha = 0.85f),
                             textAlign = TextAlign.Center
                         )
                         Spacer(modifier = Modifier.padding(8.dp))
-                        Button(onClick = { onBackToLevels() }) { Text("All Levels") }
+                        Button(onClick = { onBackToLevels() }, modifier = buttonModifier) { Text(backLabel) }
                         Spacer(modifier = Modifier.padding(4.dp))
-                        Button(onClick = { viewModel.restart() }) { Text("Play Again") }
+                        Button(onClick = { viewModel.restart() }, modifier = buttonModifier) { Text("Play Again") }
                     }
                 }
             }
         }
+    }
     }
 }
 
@@ -318,6 +394,10 @@ fun GameScreen(
  */
 fun winOverlayMovesText(moveCount: Int, bestMoves: Int?): String =
     if (bestMoves != null) "Solved in $moveCount moves! (Best: $bestMoves)" else "Solved in $moveCount moves!"
+
+/** The win line split in two for narrow panels: "Solved in 6 moves!" and, when known, "(Best: 6)". */
+fun winOverlayLines(moveCount: Int, bestMoves: Int?): Pair<String, String?> =
+    "Solved in $moveCount moves!" to bestMoves?.let { "(Best: $it)" }
 
 /** Shown under the move count when the player finishes the final level of the pack. */
 const val LAST_LEVEL_MESSAGE = "You cleared every level! More are on the way."

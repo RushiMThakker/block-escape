@@ -28,7 +28,9 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -40,20 +42,34 @@ import com.rushi.blockescape.domain.Orientation
 import com.rushi.blockescape.domain.Vehicle
 import com.rushi.blockescape.haptics.HapticFeedback
 import com.rushi.blockescape.solver.Solver
+import com.rushi.blockescape.ui.festive.LocalSeasonal
+import com.rushi.blockescape.ui.festive.SeasonalArt
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 @Composable
-fun GameBoardScreen(board: Board, hint: Solver.Move? = null, onMove: (String, Int) -> Unit = { _, _ -> }) {
+fun GameBoardScreen(
+    board: Board,
+    hint: Solver.Move? = null,
+    onMove: (String, Int) -> Unit = { _, _ -> },
+    // Reports whether a block is being dragged (or settling), so ambient effects can step aside.
+    onInteractionChange: (Boolean) -> Unit = {}
+) {
     var cellPx by remember { mutableFloatStateOf(0f) }
     var draggingId by remember { mutableStateOf<String?>(null) }
     var dragOffsetCells by remember { mutableFloatStateOf(0f) }
     var isShaking by remember { mutableStateOf(false) }
     val shake = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
+    LaunchedEffect(draggingId) { onInteractionChange(draggingId != null) }
 
     val context = LocalContext.current
     val haptics = remember(context) { HapticFeedback(context) }
+
+    // Festive look (sleigh + gift boxes). The art object holds vector geometry for one cell size, so it
+    // is rebuilt only when the board is resized - never per frame.
+    val seasonal = LocalSeasonal.current
+    val artHolder = remember { SeasonalArtHolder() }
 
     // ---------------------------------------------------------------------------------
     // Purely-visual "the car drives out through the exit" flourish for the primary
@@ -144,6 +160,12 @@ fun GameBoardScreen(board: Board, hint: Solver.Move? = null, onMove: (String, In
             .fillMaxWidth()
             .padding(16.dp)
             .aspectRatio(1f)
+            // Festive look only: render the board (wood grain + blocks) into its own texture. The snow and
+            // light layers tick every frame; without this the GPU re-draws the whole board each tick.
+            // The texture is re-rendered only when the board itself changes (a drag, a move, a hint).
+            // Side effect: the win animation's sleigh is clipped at the board edge instead of driving on
+            // over the light string, which reads cleaner.
+            .then(if (seasonal) Modifier.graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen) else Modifier)
             .pointerInput(board) {
                 cellPx = size.width / board.width.toFloat()
                 detectDragGestures(
@@ -261,7 +283,7 @@ fun GameBoardScreen(board: Board, hint: Solver.Move? = null, onMove: (String, In
 
         // This part is NOT cached — it's cheap (one rounded rect + one gradient overlay
         // per vehicle) and needs to redraw every frame during a drag to track the finger.
-        board.vehicles.forEach { vehicle ->
+        board.vehicles.forEachIndexed { vehicleIndex, vehicle ->
             val offsetCells = if (vehicle.id == draggingId) dragOffsetCells else 0f
             val shakePx = if (vehicle.id == draggingId) shake.value * 6f else 0f
             // Extra exit-flourish offset (see exitExtraCells above) - only ever nonzero
@@ -275,7 +297,10 @@ fun GameBoardScreen(board: Board, hint: Solver.Move? = null, onMove: (String, In
             if (hint != null && vehicle.id == hint.vehicleId) {
                 drawHintHighlight(vehicle, cellPx, offsetCells, shakePx, hintPulse, direction = if (hint.delta >= 0) 1 else -1)
             }
-            drawVehicle(vehicle, cellPx, offsetCells, shakePx, isPrimary = vehicle.isPrimary, extraOffsetPx = exitOffsetPx)
+            drawVehicle(
+                vehicle, cellPx, offsetCells, shakePx, isPrimary = vehicle.isPrimary, extraOffsetPx = exitOffsetPx,
+                art = if (seasonal) artHolder.get(cellPx) else null, giftIndex = vehicleIndex
+            )
         }
     }
 }
@@ -303,7 +328,9 @@ private fun DrawScope.drawVehicle(
     offsetCells: Float,
     shakePx: Float,
     isPrimary: Boolean,
-    extraOffsetPx: Float = 0f
+    extraOffsetPx: Float = 0f,
+    art: SeasonalArt? = null,
+    giftIndex: Int = 0
 ) {
     val margin = cellPx * 0.08f
     val baseX = vehicle.col * cellPx
@@ -318,6 +345,17 @@ private fun DrawScope.drawVehicle(
         BoardColors.vehiclePrimary
     } else {
         BoardColors.vehiclePalette[vehicle.id.hashCode().mod(BoardColors.vehiclePalette.size)]
+    }
+
+    // Festive look: same footprint as the classic body below, different art.
+    if (art != null) {
+        if (isPrimary && vehicle.orientation == Orientation.HORIZONTAL) {
+            with(art) { drawSleigh(vehicle, x, y) }
+            return
+        } else if (!isPrimary) {
+            with(art) { drawGift(vehicle, x, y, giftIndex, w, h) }
+            return
+        }
     }
 
     val topLeft = Offset(x + margin, y + margin)
@@ -445,4 +483,17 @@ private fun DrawScope.drawHintArrow(
     // wood-grain background, then the warm fill (brightening at the top of the pulse) on top.
     drawPath(path = path, color = Color.Black.copy(alpha = 0.28f), style = Stroke(width = 2.5f))
     drawPath(path = path, color = BoardColors.hintGlow.copy(alpha = 0.85f + pulse * 0.15f))
+}
+
+/** Hands out a SeasonalArt for the current cell size, rebuilding it only when the size changes. */
+private class SeasonalArtHolder {
+    private var cell = 0f
+    private var art: SeasonalArt? = null
+
+    fun get(cellPx: Float): SeasonalArt {
+        val current = art
+        if (current != null && cell == cellPx) return current
+        cell = cellPx
+        return SeasonalArt(cellPx).also { art = it }
+    }
 }

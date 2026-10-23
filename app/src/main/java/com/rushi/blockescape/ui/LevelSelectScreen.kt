@@ -1,6 +1,19 @@
 package com.rushi.blockescape.ui
 
 import androidx.compose.foundation.background
+import com.rushi.blockescape.ui.festive.LocalSeasonal
+import com.rushi.blockescape.ui.festive.Festive
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -56,9 +69,6 @@ import androidx.compose.ui.unit.sp
  * Shares GameScreen's "BLOCK ESCAPE" wordmark and warm radial background wash so the two
  * screens read as one app rather than two stapled-together UIs.
  */
-/** Typical column count of the adaptive grid on a phone; only used to start the scroll one row early. */
-private const val GRID_COLUMNS_HINT = 3
-
 @Composable
 fun LevelSelectScreen(
     totalLevels: Int,
@@ -67,7 +77,12 @@ fun LevelSelectScreen(
     onLevelSelected: (Int) -> Unit,
     onHowToPlay: () -> Unit,
     onRate: () -> Unit,
-    onShare: () -> Unit
+    onShare: () -> Unit,
+    // Festive season only (see Season.adventVisible): a card that opens the Advent calendar.
+    adventVisible: Boolean = false,
+    adventSolved: Int = 0,
+    onAdvent: () -> Unit = {},
+    onSettings: () -> Unit = {}
 ) {
     val colorScheme = MaterialTheme.colorScheme
 
@@ -77,32 +92,41 @@ fun LevelSelectScreen(
         Brush.radialGradient(listOf(colorScheme.surface, colorScheme.background))
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(backgroundBrush)
-    ) {
+    ScreenSurface(seasonal = LocalSeasonal.current, brush = backgroundBrush) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .systemBarsPadding()
                 .padding(horizontal = 20.dp, vertical = 20.dp)
         ) {
-            Text(
-                text = "BLOCK ESCAPE",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = colorScheme.primary,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Text(
-                text = "Select a Level",
-                style = MaterialTheme.typography.labelLarge,
-                color = colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
-            )
+            FestiveTopInset()
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "BLOCK ESCAPE",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = colorScheme.primary,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Text(
+                        text = "Select a Level",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                TextButton(onClick = onSettings, modifier = Modifier.align(Alignment.TopEnd)) {
+                    Text("Settings", fontSize = 13.sp, color = colorScheme.onSurfaceVariant)
+                }
+            }
+
+            if (adventVisible) {
+                Spacer(modifier = Modifier.height(14.dp))
+                AdventCard(solved = adventSolved, onClick = onAdvent)
+            }
 
             // Open on the level the player is up to rather than always at level 1: with 25 levels the
             // frontier can be several screens down. Starting one row above it keeps the context of
@@ -152,14 +176,54 @@ fun LevelSelectScreen(
     }
 }
 
+/** Typical column count of the adaptive grid on a phone; only used to start the scroll one row early. */
+private const val GRID_COLUMNS_HINT = 3
+
+/** The entry to the Advent calendar, shown above the level grid from 1 December to 6 January. */
+@Composable
+private fun AdventCard(solved: Int, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(16.dp)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(Brush.horizontalGradient(listOf(Festive.skyTop, Color(0xFF1D3A6E))))
+            .border(1.5.dp, Festive.gold.copy(alpha = 0.85f), shape)
+            .clickable(onClick = onClick)
+            .semantics { contentDescription = "Advent calendar, $solved of 24 solved, tap to open" }
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+    ) {
+        Canvas(modifier = Modifier.size(34.dp, 40.dp)) {
+            val u = 1.dp.toPx()
+            drawRoundRect(Color(0xFF214D86), Offset.Zero, Size(size.width, size.height), CornerRadius(5 * u))
+            drawRoundRect(Color(0xFF1B4278), Offset(5 * u, 5 * u), Size(size.width - 10 * u, size.height - 10 * u), CornerRadius(3 * u))
+            drawRoundRect(Festive.gold, Offset.Zero, Size(size.width, size.height), CornerRadius(5 * u), style = Stroke(1.5f * u))
+            drawCircle(Festive.gold, 2.2f * u, Offset(size.width - 7 * u, size.height * 0.56f))
+        }
+        Column(modifier = Modifier.weight(1f).padding(start = 14.dp)) {
+            Text(
+                "Advent calendar",
+                fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                color = Festive.warmWhite
+            )
+            Text("$solved of 24 solved", fontSize = 12.sp, color = Festive.frost.copy(alpha = 0.85f))
+        }
+        Text("›", fontSize = 26.sp, color = Festive.gold)
+    }
+}
+
 @Composable
 private fun FooterButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val seasonal = LocalSeasonal.current
     Button(
         onClick = onClick,
         shape = RoundedCornerShape(50),
         colors = ButtonDefaults.buttonColors(
-            containerColor = BoardColors.woodBase,
-            contentColor = Color(0xFFFFF8EF)
+            containerColor = if (seasonal) MaterialTheme.colorScheme.primary else BoardColors.woodBase,
+            contentColor = if (seasonal) MaterialTheme.colorScheme.onPrimary else Color(0xFFFFF8EF)
         ),
         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
         modifier = modifier

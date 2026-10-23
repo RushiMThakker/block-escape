@@ -11,16 +11,20 @@ import com.google.android.play.core.review.ReviewManagerFactory
 private const val PACKAGE_NAME = "com.rushi.blockescape"
 private const val PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=$PACKAGE_NAME"
 
-fun shareApp(context: Context) {
+fun shareApp(context: Context, adventDay: Int? = null) {
     val send = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
         putExtra(Intent.EXTRA_SUBJECT, "Block Escape")
-        putExtra(
-            Intent.EXTRA_TEXT,
-            "Try Block Escape - a sliding-block puzzle game. Slide the blocks to clear the way for the red block!\n$PLAY_STORE_URL"
-        )
+        putExtra(Intent.EXTRA_TEXT, shareText(adventDay))
     }
     context.startActivity(Intent.createChooser(send, "Share Block Escape").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+}
+
+/** Share message; the optional Advent day only says which day of the calendar it is, never a board or a solution. */
+fun shareText(adventDay: Int? = null): String {
+    val lead = "Try Block Escape - a sliding-block puzzle game. Slide the blocks to clear the way for the red block!"
+    val advent = if (adventDay != null && adventDay in 1..24) "\nI'm on Advent calendar day $adventDay." else ""
+    return "$lead$advent\n$PLAY_STORE_URL"
 }
 
 fun rateApp(context: Context) {

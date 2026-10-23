@@ -30,4 +30,13 @@ class GameScreenTextTest {
         // Must not promise a date or a specific number of levels.
         assertEquals("You cleared every level! More are on the way.", LAST_LEVEL_MESSAGE)
     }
+
+    @Test
+    fun `the two-line festive version says the same thing as the one-line version`() {
+        for (best in listOf(null, 2, 30)) {
+            val (headline, bestLine) = winOverlayLines(moveCount = 5, bestMoves = best)
+            val joined = if (bestLine == null) headline else "$headline $bestLine"
+            assertEquals(winOverlayMovesText(5, best), joined)
+        }
+    }
 }
