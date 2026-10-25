@@ -26,11 +26,13 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.android.gms.ads.MobileAds
 import com.google.android.gms.ads.RequestConfiguration
+import com.rushi.blockescape.audio.MusicPolicy
 import com.rushi.blockescape.level.LevelBestMoves
 import com.rushi.blockescape.level.LevelPack
 import com.rushi.blockescape.level.LevelRepository
 import com.rushi.blockescape.level.toBoard
 import com.rushi.blockescape.progress.ProgressStore
+import com.rushi.blockescape.settings.PlayerSettings
 import com.rushi.blockescape.season.AdventBits
 import com.rushi.blockescape.season.CalendarDate
 import com.rushi.blockescape.season.Season
@@ -41,6 +43,7 @@ import com.rushi.blockescape.ui.GameViewModel
 import com.rushi.blockescape.ui.HowToPlayDialog
 import com.rushi.blockescape.ui.LevelSelectScreen
 import com.rushi.blockescape.ui.SettingsScreen
+import com.rushi.blockescape.ui.festive.FestiveMusicEffect
 import com.rushi.blockescape.ui.theme.BlockEscapeTheme
 
 /**
@@ -183,6 +186,9 @@ private fun BlockEscapeApp(context: Context, activity: Activity, debugDateText: 
     val levelFiles = LevelPack.ORDERED_LEVEL_FILES
     val progressStore = remember { ProgressStore(context) }
     val seasonStore = remember { SeasonStore(context) }
+    val playerSettings = remember { PlayerSettings(context) }
+    var vibrationOn by remember { mutableStateOf(playerSettings.vibrationEnabled()) }
+    var musicOn by remember { mutableStateOf(playerSettings.musicEnabled()) }
 
     fun resolveToday() = Season.resolveToday(CalendarDate.systemToday(), debugDateText, debuggable)
     var today by remember { mutableStateOf(resolveToday()) }
@@ -250,6 +256,9 @@ private fun BlockEscapeApp(context: Context, activity: Activity, debugDateText: 
     var showHowToPlay by rememberSaveable { mutableStateOf(!progressStore.hasSeenHowToPlay()) }
 
     BlockEscapeTheme(seasonal = seasonalActive) {
+        // Soft music only while the festive look is on and the player has not switched it off; it also
+        // pauses whenever the app is not in the foreground (see FestiveMusicEffect).
+        FestiveMusicEffect(play = MusicPolicy.shouldPlay(seasonalActive, musicOn))
         Surface(modifier = Modifier) {
             when (val current = screen) {
                 is Screen.LevelSelect -> {
@@ -373,6 +382,16 @@ private fun BlockEscapeApp(context: Context, activity: Activity, debugDateText: 
                         onLookChange = { chosen ->
                             look = chosen
                             seasonStore.setSeasonalLook(chosen)
+                        },
+                        vibrationOn = vibrationOn,
+                        onVibrationChange = { on ->
+                            vibrationOn = on
+                            playerSettings.setVibrationEnabled(on)
+                        },
+                        musicOn = musicOn,
+                        onMusicChange = { on ->
+                            musicOn = on
+                            playerSettings.setMusicEnabled(on)
                         },
                         onBack = { screen = Screen.LevelSelect }
                     )

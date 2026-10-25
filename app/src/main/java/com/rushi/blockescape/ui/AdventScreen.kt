@@ -13,6 +13,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -49,6 +50,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.coerceAtMost
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rushi.blockescape.haptics.HapticFeedback
@@ -63,6 +65,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private const val COLUMNS = 4
+private val MIN_DOOR_HEIGHT = 84.dp
 private val DoorOpenEasing = CubicBezierEasing(0.34f, 1.56f, 0.64f, 1f) // ease-out with a small overshoot
 
 /** One-line status under the title. Pure, so the wording is unit-tested. */
@@ -143,26 +146,37 @@ fun AdventScreen(
             )
             Spacer(Modifier.height(18.dp))
 
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-                    .padding(bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                (1..Season.DOORS).chunked(COLUMNS).forEach { rowDays ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                        rowDays.forEach { day ->
-                            val state = Season.doorState(day, today, AdventBits.isCleared(clearedBits, day))
-                            DoorCell(
-                                day = day,
-                                state = state,
-                                pulse = pulse,
-                                // Staggered entrance: ~28 ms per door, capped so the last one lands inside 0.7 s.
-                                entranceDelayMs = minOf((day - 1) * 28, 640),
-                                onOpen = onOpenDoor,
-                                modifier = Modifier.weight(1f)
-                            )
+            // Size the doors to the room there is, so all 24 fit without scrolling on a normal phone.
+            // Only a screen too short to give every door a readable height falls back to scrolling.
+            BoxWithConstraints(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                val gap = 12.dp
+                val rows = Season.DOORS / COLUMNS
+                val columnWidth = (maxWidth - gap * (COLUMNS - 1)) / COLUMNS
+                val tallestDoor = columnWidth * 1.16f
+                val fitHeight = (maxHeight - gap * (rows - 1) - 8.dp) / rows
+                val scrolls = fitHeight < MIN_DOOR_HEIGHT
+                val doorHeight = (if (scrolls) MIN_DOOR_HEIGHT else fitHeight).coerceAtMost(tallestDoor)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(if (scrolls) Modifier.verticalScroll(rememberScrollState()) else Modifier)
+                        .padding(bottom = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(gap)
+                ) {
+                    (1..Season.DOORS).chunked(COLUMNS).forEach { rowDays ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(gap), modifier = Modifier.fillMaxWidth()) {
+                            rowDays.forEach { day ->
+                                val state = Season.doorState(day, today, AdventBits.isCleared(clearedBits, day))
+                                DoorCell(
+                                    day = day,
+                                    state = state,
+                                    pulse = pulse,
+                                    // Staggered entrance: ~28 ms per door, capped so the last one lands inside 0.7 s.
+                                    entranceDelayMs = minOf((day - 1) * 28, 640),
+                                    onOpen = onOpenDoor,
+                                    modifier = Modifier.weight(1f).height(doorHeight)
+                                )
+                            }
                         }
                     }
                 }
@@ -199,7 +213,6 @@ private fun DoorCell(
     val locked = state == DoorState.LOCKED
     Box(
         modifier = modifier
-            .aspectRatio(0.86f)
             .graphicsLayer {
                 val e = enter.value
                 alpha = e
@@ -272,11 +285,12 @@ private fun DrawScope.drawDoor(state: DoorState, open: Float, pulse: Float) {
     // Interior, visible as the leaf swings away.
     if (open > 0.02f) clipRect(0f, 0f, w, h) {
         drawRoundRect(Color(0xFF2A1F0E), Offset.Zero, Size(w, h), corner)
-        val c = Offset(w * 0.55f, h * 0.48f)
-        drawCircle(Festive.gold.copy(alpha = 0.10f * open), w * 0.62f, c)
-        drawCircle(Festive.gold.copy(alpha = 0.18f * open), w * 0.42f, c)
-        drawCircle(Festive.warmWhite.copy(alpha = 0.30f * open), w * 0.22f, c)
-        val s = w * 0.22f * open.coerceAtMost(1.15f)
+        // The glow stays inside the doorway: a hard-edged circle larger than the door looked cropped.
+        val c = Offset(w * 0.5f, h * 0.48f)
+        drawCircle(Festive.gold.copy(alpha = 0.10f * open), w * 0.44f, c)
+        drawCircle(Festive.gold.copy(alpha = 0.18f * open), w * 0.32f, c)
+        drawCircle(Festive.warmWhite.copy(alpha = 0.30f * open), w * 0.19f, c)
+        val s = w * 0.17f * open.coerceAtMost(1.15f)
         val spark = Festive.warmWhite.copy(alpha = open.coerceAtMost(1f))
         drawLine(spark, Offset(c.x - s, c.y), Offset(c.x + s, c.y), 2f * u, StrokeCap.Round)
         drawLine(spark, Offset(c.x, c.y - s), Offset(c.x, c.y + s), 2f * u, StrokeCap.Round)

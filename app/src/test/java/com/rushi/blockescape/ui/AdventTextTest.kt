@@ -56,4 +56,12 @@ class AdventTextTest {
         assertFalse(shareText(0).contains("Advent"))
         assertFalse(shareText(25).contains("Advent"))
     }
+
+    @Test
+    fun `on and off labels and the new settings help text`() {
+        assertEquals("On", onOffLabel(true))
+        assertEquals("Off", onOffLabel(false))
+        assertTrue(VIBRATION_HELP.contains("blocked") && VIBRATION_HELP.contains("clear"))
+        assertTrue(MUSIC_HELP.contains("festive look") && MUSIC_HELP.contains("already playing"))
+    }
 }

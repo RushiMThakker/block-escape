@@ -5,6 +5,7 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import com.rushi.blockescape.settings.PlayerSettings
 
 /**
  * Thin, Context-based wrapper around Android's vibration APIs for short UI feedback.
@@ -27,15 +28,17 @@ import android.os.VibratorManager
  *    overloads exist - amplitude-less (full-strength, on/off only) but still safe to
  *    call on every device back to API 24.
  *
- * There is deliberately no mute/settings toggle here: `Vibrator.vibrate` already no-ops
- * correctly when the user has disabled vibration system-wide, so respecting that is
- * "do nothing extra."
+ * Vibration respects the system setting (`Vibrator.vibrate` no-ops when the user has
+ * disabled vibration system-wide) AND the in-app Settings switch ([PlayerSettings]), which
+ * is checked before every buzz so it takes effect immediately.
  *
  * All calls are wrapped in try/catch and null-checked - haptics are a nice-to-have
  * polish layer, and some devices (and most emulators) either lack a vibrator or behave
  * unpredictably when queried for one. A failure here must never crash gameplay.
  */
 class HapticFeedback(context: Context) {
+
+    private val settings = PlayerSettings(context)
 
     private val vibrator: Vibrator? = try {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -56,32 +59,21 @@ class HapticFeedback(context: Context) {
      */
     fun blockedMove() = oneShot(durationMs = 30, amplitude = 110)
 
-    /**
-     * Win: the payoff moment. A short two-pulse pattern that builds (a light pulse, a
-     * beat, then a slightly stronger one) rather than a single generic buzz - softened
-     * from an earlier, more intense version, but still distinct from blockedMove's flat
-     * single tap.
-     */
-    fun win() {
-        val v = vibrator ?: return
-        if (!safeHasVibrator(v)) return
-        try {
-            // timings: [wait, on, off, on, off, on] in ms. amplitudes: 0 during the
-            // "off" gaps, ramping up on each successive pulse.
-            val timings = longArrayOf(0, 35, 70, 40, 80, 60)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val amplitudes = intArrayOf(0, 70, 0, 110, 0, 150)
-                v.vibrate(VibrationEffect.createWaveform(timings, amplitudes, -1))
-            } else {
-                @Suppress("DEPRECATION")
-                v.vibrate(timings, -1)
-            }
-        } catch (_: Exception) {
-            // Best-effort only.
-        }
+    /** Whether a blocked-move tick should fire when a drag is clamped; false for the winning drag out of the exit. */
+    companion object {
+        fun shouldBuzzForBlockedDrag(isPrimary: Boolean, clampedReachesExit: Boolean): Boolean =
+            !(isPrimary && clampedReachesExit)
     }
 
+    /**
+     * Win: the payoff moment. One clean, slightly firmer pulse. It used to be a three-pulse
+     * pattern; together with the blocked-move tick that can fire as the sleigh reaches the
+     * exit it felt like two or three separate buzzes, so it is now a single one.
+     */
+    fun win() = oneShot(durationMs = 70, amplitude = 170)
+
     private fun oneShot(durationMs: Long, amplitude: Int) {
+        if (!settings.vibrationEnabled()) return
         val v = vibrator ?: return
         if (!safeHasVibrator(v)) return
         try {

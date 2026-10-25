@@ -153,6 +153,18 @@ class LevelToolsTest {
                 }
                 println("GEN solved ${names.size} boards")
             }
+            "music" -> {
+                // Writes the festive loop as a WAV so it can be auditioned on a PC.
+                val pcm = com.rushi.blockescape.audio.FestiveTune.render()
+                val rate = com.rushi.blockescape.audio.FestiveTune.SAMPLE_RATE
+                val bytes = java.nio.ByteBuffer.allocate(44 + pcm.size * 2).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+                bytes.put("RIFF".toByteArray()).putInt(36 + pcm.size * 2).put("WAVEfmt ".toByteArray())
+                bytes.putInt(16).putShort(1).putShort(1).putInt(rate).putInt(rate * 2).putShort(2).putShort(16)
+                bytes.put("data".toByteArray()).putInt(pcm.size * 2)
+                for (v in pcm) bytes.putShort(v)
+                File(outDir, "festive-music-preview.wav").writeBytes(bytes.array())
+                println("GEN wrote festive-music-preview.wav, ${pcm.size / rate} s")
+            }
             else -> error("unknown mode $mode")
         }
     }

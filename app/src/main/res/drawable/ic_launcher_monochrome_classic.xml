@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Monochrome adaptive-icon layer (Android 13+ "themed icons" / Material You). The system
+    tints this silhouette with the wallpaper-derived theme color when the user has themed
+    icons enabled, and ignores it entirely otherwise/on older API levels, so it only needs
+    the car's silhouette (matching ic_launcher_foreground.xml's car body, minus stroke/
+    gloss/glow, since a single bold shape is what reads cleanly once tinted).
+
+    Note: added as a general Material You completeness improvement while investigating the
+    launcher halo (see ic_launcher_background.xml history / task notes) — confirmed via a
+    real-device A/B test that adding this layer does NOT affect the halo one way or the
+    other, since the halo turned out to be unrelated to monochrome support (Pixel Launcher's
+    predictive hotseat-suggestion slot highlight, not anything in our adaptive-icon assets).
+    Kept anyway since it's a real, low-risk improvement for Themed Icons users.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:pathData="M33,40 H79 A7,7 0 0 1 86,47 V61 A7,7 0 0 1 79,68 H33
+                           A7,7 0 0 1 26,61 V47 A7,7 0 0 1 33,40 Z"
+        android:fillColor="#FFFFFF" />
+</vector>

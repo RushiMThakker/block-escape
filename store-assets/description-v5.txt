@@ -14,7 +14,7 @@ HOW IT WORKS
 FEATURES
 - 25 unblock puzzles with a smooth difficulty curve, from a 2-move warm-up to boards that need 30 moves
 - Advent calendar: from 1 to 24 December a new door opens each day with its own puzzle. Missed a day? Every door stays open to catch up until 6 January
-- A festive look for the season: the red block becomes a sleigh, the others become gift boxes, with string lights and falling snow. It switches on automatically from 1 December to 6 January, and you can set it to On or Off in Settings
+- A festive look for the season: the red block becomes a sleigh, the others become gift boxes, with string lights, falling snow and soft background music. It switches on automatically from 1 December to 6 January, and you can set it to On or Off in Settings, along with music and vibration
 - Best-possible move count shown for every level, so you can chase a perfect score
 - Free, unlimited hints whenever you are stuck
 - Undo and Restart at any time, so you can try ideas without worry

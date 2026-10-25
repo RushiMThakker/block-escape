@@ -192,7 +192,13 @@ fun GameBoardScreen(
                         // would cancel the in-flight animation a few ms into its upswing
                         // and it would never complete its 1f -> -1f -> 0f arc. Only fire
                         // once on the not-blocked -> blocked transition.
-                        if (proposed != clamped && !isShaking) {
+                        // Dragging the primary block as far as it will go toward a clear exit is the winning
+                        // move, not a blocked one: no "no" tick and no shake (the win buzz follows on release).
+                        val reachesExit = vehicle.isPrimary && range.last > 0 &&
+                            vehicle.col + vehicle.length - 1 + range.last >= board.width - 1
+                        if (proposed != clamped && !isShaking &&
+                            HapticFeedback.shouldBuzzForBlockedDrag(vehicle.isPrimary, reachesExit)
+                        ) {
                             isShaking = true
                             haptics.blockedMove()
                             scope.launch {
