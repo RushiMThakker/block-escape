@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import android.content.pm.ApplicationInfo
 import android.util.Log
 import com.google.android.gms.ads.AdListener
 import com.google.android.gms.ads.AdRequest
@@ -22,8 +23,8 @@ import com.google.android.gms.ads.LoadAdError
 import kotlin.math.roundToInt
 
 /**
- * An adaptive-width AdMob banner (see [AdConfig.BANNER_AD_UNIT_ID] for which ad unit this
- * loads — currently Google's public test unit). Wraps the classic Android `AdView` via
+ * An adaptive-width AdMob banner (see [AdConfig.bannerUnitId]: Google's test unit in debuggable
+ * builds, the real unit in release). Only composed once consent allows ads. Wraps the classic Android `AdView` via
  * Compose's `AndroidView` interop, which is the Google-documented way to host AdMob
  * banners in Compose.
  *
@@ -56,7 +57,8 @@ fun BannerAdView(modifier: Modifier = Modifier) {
         val adView = remember(adSize) {
             AdView(context).apply {
                 setAdSize(adSize)
-                adUnitId = AdConfig.BANNER_AD_UNIT_ID
+                val debuggable = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+                adUnitId = AdConfig.bannerUnitId(debuggable)
                 // Logged rather than silently swallowed - an AdView collapses to nothing on
                 // failure with no visible sign why, and this was previously the only way to
                 // tell "no fill" apart from an actual misconfiguration.

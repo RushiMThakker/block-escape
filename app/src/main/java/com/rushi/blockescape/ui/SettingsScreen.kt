@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -49,6 +51,9 @@ const val VIBRATION_HELP = "Short buzzes for a blocked move and when you clear a
 const val MUSIC_HELP =
     "Soft background music that plays only while the festive look is on. It stays quiet if other audio is already playing."
 
+const val PRIVACY_OPTIONS_HELP =
+    "Change or withdraw your consent for ads. Without consent, ads are not personalised, and Google may show limited ads or none."
+
 @Composable
 fun SettingsScreen(
     look: SeasonalLook,
@@ -57,7 +62,10 @@ fun SettingsScreen(
     onVibrationChange: (Boolean) -> Unit,
     musicOn: Boolean,
     onMusicChange: (Boolean) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    // Shown only when Google's consent SDK says privacy options are required (EEA, UK, Switzerland).
+    privacyOptionsVisible: Boolean = false,
+    onPrivacyOptions: () -> Unit = {}
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val wash = Brush.radialGradient(listOf(colorScheme.surface, colorScheme.background))
@@ -66,6 +74,7 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .systemBarsPadding()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 12.dp)
         ) {
             FestiveTopInset()
@@ -107,6 +116,26 @@ fun SettingsScreen(
                 onSelect = { onMusicChange(it == 0) },
                 help = MUSIC_HELP
             )
+            if (privacyOptionsVisible) {
+                Spacer(Modifier.height(24.dp))
+                Text("Privacy options", style = MaterialTheme.typography.titleMedium, color = colorScheme.onSurface)
+                Spacer(Modifier.height(10.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(colorScheme.surfaceVariant)
+                        .border(1.dp, colorScheme.onSurfaceVariant.copy(alpha = 0.18f), RoundedCornerShape(14.dp))
+                        .clickable(role = Role.Button, onClick = onPrivacyOptions)
+                        .semantics { contentDescription = "Privacy options" }
+                        .padding(vertical = 14.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("Review ad choices", fontSize = 15.sp, fontWeight = FontWeight.Medium, color = colorScheme.onSurface)
+                }
+                Spacer(Modifier.height(10.dp))
+                Text(PRIVACY_OPTIONS_HELP, fontSize = 13.sp, color = colorScheme.onSurfaceVariant)
+            }
         }
     }
 }

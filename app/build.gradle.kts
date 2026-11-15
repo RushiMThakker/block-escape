@@ -27,8 +27,8 @@ android {
         applicationId = "com.rushi.blockescape"
         minSdk = 24
         targetSdk = 36
-        versionCode = 7
-        versionName = "0.6"
+        versionCode = 8
+        versionName = "0.7"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -87,6 +87,7 @@ dependencies {
     implementation(libs.compose.material3)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.play.services.ads)
+    implementation(libs.google.ump)
     implementation(libs.core.splashscreen)
     implementation(libs.play.review.ktx)
     debugImplementation(libs.compose.ui.tooling)

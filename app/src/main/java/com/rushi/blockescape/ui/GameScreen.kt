@@ -74,7 +74,9 @@ fun GameScreen(
     titleOverride: String? = null,
     finishedMessage: String = LAST_LEVEL_MESSAGE,
     backLabel: String = "All Levels",
-    topBackLabel: String = "Levels"
+    topBackLabel: String = "Levels",
+    // True only once Google's consent flow allows ad requests; false hides the banner entirely.
+    showBanner: Boolean = false
 ) {
     val board = viewModel.board.value
     val moveCount = viewModel.moveCount.value
@@ -281,18 +283,21 @@ fun GameScreen(
             // centering logic above. A plain white/gray AdMob banner would look jarring
             // dropped directly on the warm tabletop background, so it gets a subtle
             // rounded "tray" in the theme's own surface tone to sit in instead.
-            Spacer(modifier = Modifier.height(12.dp))
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(
-                        color = colorScheme.surfaceVariant,
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                    .padding(4.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                BannerAdView()
+            // No tray and no banner until Google's consent flow says ads may be requested.
+            if (showBanner) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            color = colorScheme.surfaceVariant,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        .padding(4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    BannerAdView()
+                }
             }
         }
 

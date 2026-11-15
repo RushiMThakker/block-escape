@@ -11,6 +11,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -24,8 +25,8 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.google.android.gms.ads.MobileAds
-import com.google.android.gms.ads.RequestConfiguration
+import com.rushi.blockescape.ads.AdsController
+import com.rushi.blockescape.ads.AdsRuntime
 import com.rushi.blockescape.audio.MusicPolicy
 import com.rushi.blockescape.level.LevelBestMoves
 import com.rushi.blockescape.level.LevelPack
@@ -79,36 +80,50 @@ class MainActivity : ComponentActivity() {
         // activity's theme before the window is created).
         installSplashScreen()
         super.onCreate(savedInstanceState)
-        // Register developer test devices BEFORE the first ad request so banners on
-        // those devices always render as "Test Ad" rather than real inventory — see
-        // ADMOB_TEST_DEVICE_IDS doc above for why this matters now that real AdMob IDs
-        // are live. Safe to apply even while the list is empty/incomplete.
-        MobileAds.setRequestConfiguration(
-            RequestConfiguration.Builder()
-                .setTestDeviceIds(ADMOB_TEST_DEVICE_IDS)
-                .build()
-        )
-        // Fire-and-forget: doesn't need to block startup, just needs to happen before
-        // BannerAdView requests its first ad.
-        MobileAds.initialize(this) { }
         // Debug builds can pretend it is another date, to test the Advent calendar:
         //   adb shell am start -n com.rushi.blockescape/.MainActivity --es debug_date 2026-12-05
-        // Season.resolveToday ignores the extra unless the build is debuggable, so a release build
-        // always uses the real date whatever an intent carries.
+        // and pretend the player is in the EEA, to test the consent form:
+        //   adb shell am start -n com.rushi.blockescape/.MainActivity --ez debug_eea true
+        // Both extras are ignored unless the build is debuggable, so a release build always uses the
+        // real date and the real geography whatever an intent carries.
         val debugDate = intent?.getStringExtra(EXTRA_DEBUG_DATE)
         val debuggable = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        val forceEea = debuggable && intent?.getBooleanExtra(EXTRA_DEBUG_EEA, false) == true
+
+        // Google's consent flow (UMP) decides whether ads may be requested at all; the ad SDK is only
+        // started once it says yes. The game never waits for this: it plays fine with no banner.
+        ads = AdsRuntime.controller(applicationContext, ADMOB_TEST_DEVICE_IDS)
+        AdsRuntime.attach(this, forceEea)
+        ads.start()
+
         setContent {
             BlockEscapeApp(
                 context = applicationContext,
                 activity = this@MainActivity,
+                ads = ads,
                 debugDateText = debugDate,
                 debuggable = debuggable
             )
         }
     }
+
+    private lateinit var ads: AdsController
+
+    override fun onResume() {
+        super.onResume()
+        // A form callback can be lost if the Activity was recreated while a form was open; this
+        // re-reads Google's answer so the banner and the Privacy options row stay correct.
+        ads.refreshFromSdk()
+    }
+
+    override fun onDestroy() {
+        AdsRuntime.detach(this)
+        super.onDestroy()
+    }
 }
 
 private const val EXTRA_DEBUG_DATE = "debug_date"
+private const val EXTRA_DEBUG_EEA = "debug_eea"
 
 /** 0-based index of the level whose first clear triggers the automatic review prompt (level 3). */
 private const val REVIEW_PROMPT_LEVEL_INDEX = 2
@@ -182,7 +197,14 @@ private val ScreenSaver = Saver<Screen, Int>(
  * Advent progress lives in SeasonStore, completely separate from `clearedCount`.
  */
 @Composable
-private fun BlockEscapeApp(context: Context, activity: Activity, debugDateText: String?, debuggable: Boolean) {
+private fun BlockEscapeApp(
+    context: Context,
+    activity: Activity,
+    ads: AdsController,
+    debugDateText: String?,
+    debuggable: Boolean
+) {
+    val adsState by ads.state.collectAsState()
     val levelFiles = LevelPack.ORDERED_LEVEL_FILES
     val progressStore = remember { ProgressStore(context) }
     val seasonStore = remember { SeasonStore(context) }
@@ -324,7 +346,8 @@ private fun BlockEscapeApp(context: Context, activity: Activity, debugDateText: 
                                 requestInAppReview(activity, fallbackToStore = false)
                             }
                         },
-                        bestMoves = bestMoveCounts?.getOrNull(levelIndex)
+                        bestMoves = bestMoveCounts?.getOrNull(levelIndex),
+                        showBanner = adsState.showBanner
                     )
                 }
 
@@ -370,7 +393,8 @@ private fun BlockEscapeApp(context: Context, activity: Activity, debugDateText: 
                             titleOverride = "Advent  ·  Day $day",
                             finishedMessage = "Door $day solved!",
                             backLabel = "Calendar",
-                            topBackLabel = "Calendar"
+                            topBackLabel = "Calendar",
+                            showBanner = adsState.showBanner
                         )
                     }
                 }
@@ -393,7 +417,9 @@ private fun BlockEscapeApp(context: Context, activity: Activity, debugDateText: 
                             musicOn = on
                             playerSettings.setMusicEnabled(on)
                         },
-                        onBack = { screen = Screen.LevelSelect }
+                        onBack = { screen = Screen.LevelSelect },
+                        privacyOptionsVisible = adsState.privacyEntryVisible,
+                        onPrivacyOptions = { ads.openPrivacyOptions() }
                     )
                 }
             }
